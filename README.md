@@ -31,7 +31,9 @@ git config core.hooksPath .githooks
 node scripts/check-public.mjs
 ```
 
-Stage explicit files and review the diff. The pre-commit hook checks staged content, the approved file list, and the 100 KiB file limit. The commit-message hook requires one lowercase sentence with a type prefix:
+Stage explicit files and review the diff. The pre-commit hook checks staged content, the approved file list, and the 100 KiB file limit for portfolio sources.
+Reviewed `program-lens/` static assets have exact path/SHA-256 pins and a
+1 MiB per-file limit; every asset still passes the public-content checks. The commit-message hook requires one lowercase sentence with a type prefix:
 
 ```text
 feat: add a minimal static project portfolio
@@ -58,3 +60,18 @@ node scripts/prepare-ipfs.mjs
 Add and recursively pin **only `dist/ipfs/`**, using IPFS Desktop or Kubo with CIDv1 and raw leaves. Verify the resulting `/ipfs/<CID>/` URL before assigning `ipfs://<CID>` to an ENS contenthash record. The ENS record change must be reviewed and signed by the name's controller. Do not upload the repository root.
 
 The mirror retains the GitHub site's canonical URL and identical content. Keep the CID pinned on an available node or pinning service; local pinning alone depends on the local node staying reachable. Future site updates require a new export, pin, and ENS contenthash update.
+
+## Program Lens demo
+
+`program-lens/` contains only the compiled static demo published at
+<https://ethduke.github.io/program-lens/>. All cases, input text, labels,
+annotation evidence and prediction scores are synthetic, with explicit notices
+in the interface. The app source stays in a separate private repository; real
+datasets, original labels, review evidence, local configuration and secrets
+are not part of this site. Demo review notes stay in the visitor's browser and
+can be exported locally. No API, RPC, backend or model inference is used.
+
+To update the demo, review a fresh synthetic-only static export, replace only
+this directory, update its exact asset hashes in `scripts/check-public.mjs`,
+and run both working-tree and staged public-content checks before committing.
+The root `.nojekyll` makes the `_next/` asset directory available on Pages.

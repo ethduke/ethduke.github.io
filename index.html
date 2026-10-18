@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="referrer" content="no-referrer">
+    <meta name="description" content="ethduke's projects in applied AI, model evaluation, on-chain data, and agent tooling.">
+    <meta property="og:title" content="ethduke — projects & experiments">
+    <meta property="og:description" content="Applied AI, model evaluation, on-chain data, and agent tooling.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://ethduke.github.io/">
+    <title>ethduke — projects & experiments</title>
+    <link rel="canonical" href="https://ethduke.github.io/">
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="alternate" type="text/markdown" href="./index.md" title="Project summaries in Markdown">
+    <link rel="describedby" type="text/plain" href="./llms.txt">
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Person",
+      "@id": "https://ethduke.github.io/#ethduke",
+      "name": "ethduke",
+      "url": "https://ethduke.github.io/",
+      "sameAs": [
+        "https://github.com/ethduke",
+        "https://huggingface.co/ethduke"
+      ]
+    },
+    {
+      "@type": "ProfilePage",
+      "@id": "https://ethduke.github.io/#page",
+      "url": "https://ethduke.github.io/",
+      "name": "ethduke — projects & experiments",
+      "description": "Exploring applied AI and crypto through model training, evaluation, research pipelines, and agent tooling.",
+      "mainEntity": {
+        "@id": "https://ethduke.github.io/#ethduke"
+      },
+      "hasPart": [
+        {
+          "@type": "CreativeWork",
+          "@id": "https://ethduke.github.io/#solana-bytecode-classifier",
+          "url": "https://ethduke.github.io/#solana-bytecode-classifier",
+          "name": "Solana Bytecode Classifier",
+          "description": "Qwen3-8B LoRA classification with calibrated probabilities and structured holdouts. Program Lens provides a workspace for reviewing predictions, evidence, and model disagreements.",
+          "creator": {
+            "@id": "https://ethduke.github.io/#ethduke"
+          }
+        },
+        {
+          "@type": "CreativeWork",
+          "@id": "https://ethduke.github.io/#contract-risk-classifier",
+          "url": "https://ethduke.github.io/#contract-risk-classifier",
+          "name": "Contract Risk Classifier",
+          "description": "Fine-tuning and evaluating Qwen3.5 with LoRA to answer risk questions about decompiled EVM token contracts.",
+          "creator": {
+            "@id": "https://ethduke.github.io/#ethduke"
+          },
+          "subjectOf": {
+            "@type": "WebPage",
+            "url": "https://huggingface.co/ethduke/robinhood-contract-traps-qwen3.5-0.8b-lora",
+            "name": "Model card"
+          }
+        },
+        {
+          "@type": "CreativeWork",
+          "@id": "https://ethduke.github.io/#on-chain-research-pipeline",
+          "url": "https://ethduke.github.io/#on-chain-research-pipeline",
+          "name": "On-chain Research Pipeline",
+          "description": "Uniswap event decoding, Parquet datasets, and liquidity and wallet-flow research with Python and Polars.",
+          "creator": {
+            "@id": "https://ethduke.github.io/#ethduke"
+          }
+        },
+        {
+          "@type": "CreativeWork",
+          "@id": "https://ethduke.github.io/#farmgun",
+          "url": "https://ethduke.github.io/#farmgun",
+          "name": "Farmgun",
+          "description": "A crypto launch application with agent APIs, paid image generation, and recovery of interrupted workflows.",
+          "creator": {
+            "@id": "https://ethduke.github.io/#ethduke"
+          }
+        }
+      ]
+    }
+  ]
+}
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#projects">Skip to projects</a>
+    <div class="page">
+      <header class="site-header">
+        <a class="wordmark" href="./" aria-label="ethduke home">ethduke<span aria-hidden="true">.</span></a>
+        <nav aria-label="Profiles">
+          <a href="https://github.com/ethduke" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+          <a href="https://huggingface.co/ethduke" rel="noreferrer">Hugging Face <span aria-hidden="true">↗</span></a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="intro" aria-labelledby="intro-title">
+          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span>Projects &amp; experiments</p>
+          <h1 id="intro-title">Models, data,<br>and <em>working software.</em></h1>
+          <p class="intro-copy">Exploring applied AI and crypto through model training, evaluation, research pipelines, and agent tooling.</p>
+        </section>
+
+        <section id="projects" aria-labelledby="projects-title">
+          <h2 id="projects-title" class="section-heading">Selected work</h2>
+
+          <article class="project" id="solana-bytecode-classifier">
+            <div class="project-copy">
+              <h3>Solana Bytecode Classifier</h3>
+              <p>Qwen3-8B LoRA classification with calibrated probabilities and structured holdouts. Program Lens provides a workspace for reviewing predictions, evidence, and model disagreements.</p>
+            </div>
+            <div class="project-meta"><span>Training &amp; evaluation</span><span class="note-label">Project note</span></div>
+          </article>
+
+          <article class="project" id="contract-risk-classifier">
+            <div class="project-copy">
+              <h3>Contract Risk Classifier</h3>
+              <p>Fine-tuning and evaluating Qwen3.5 with LoRA to answer risk questions about decompiled EVM token contracts.</p>
+            </div>
+            <div class="project-meta"><span>Applied ML</span><a href="https://huggingface.co/ethduke/robinhood-contract-traps-qwen3.5-0.8b-lora" rel="noreferrer">Model card <span aria-hidden="true">↗</span></a></div>
+          </article>
+
+          <article class="project" id="on-chain-research-pipeline">
+            <div class="project-copy">
+              <h3>On-chain Research Pipeline</h3>
+              <p>Uniswap event decoding, Parquet datasets, and liquidity and wallet-flow research with Python and Polars.</p>
+            </div>
+            <div class="project-meta"><span>Data &amp; research</span><span class="note-label">Project note</span></div>
+          </article>
+
+          <article class="project" id="farmgun">
+            <div class="project-copy">
+              <h3>Farmgun</h3>
+              <p>A crypto launch application with agent APIs, paid image generation, and recovery of interrupted workflows.</p>
+            </div>
+            <div class="project-meta"><span>Agent tooling</span><span class="note-label">Project note</span></div>
+          </article>
+        </section>
+
+        <section class="experiments" aria-labelledby="experiments-title">
+          <h2 id="experiments-title" class="section-heading">Code &amp; experiments</h2>
+          <ul>
+            <li><a href="https://github.com/ethduke/gensyn_rlswarm_leaderboard" rel="noreferrer">Gensyn peer analytics <span aria-hidden="true">↗</span></a></li>
+            <li><a href="https://github.com/ethduke/eip_7702_batch_txs" rel="noreferrer">EIP-7702 experiments <span aria-hidden="true">↗</span></a></li>
+            <li><a href="https://github.com/ethduke/tg_summary_openrouter" rel="noreferrer">LLM workflow example <span aria-hidden="true">↗</span></a></li>
+          </ul>
+        </section>
+      </main>
+
+      <footer class="site-footer"><span>ethduke</span><a href="https://github.com/ethduke/ethduke.github.io" rel="noreferrer">Site source <span aria-hidden="true">↗</span></a></footer>
+    </div>
+  </body>
+</html>

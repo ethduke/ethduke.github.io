@@ -1,0 +1,38 @@
+# ethduke
+
+> Independent researcher and software builder working across applied AI/ML, crypto R&D, on-chain data analysis, and agent tooling.
+
+Hands-on work spans data preparation and agent-assisted labelling, LoRA fine-tuning, calibrated classification, model and rule-based baseline comparisons, structured holdout evaluation, and interfaces for reviewing model predictions and evidence. Crypto research focuses on Ethereum/EVM, Solana, and DeFi, including protocol analysis, contract reverse engineering, liquidity research, and wallet-flow analysis.
+
+Builds Python research and data pipelines, TypeScript/Node.js applications, LLM workflows, and inference API integrations. Project tools include PyTorch, Hugging Face Transformers, PEFT/LoRA, Polars, NumPy, Parquet, PostgreSQL/pgvector, FastAPI, React, and Next.js. Uses Codex, Claude Code, and Cursor for AI-assisted software development.
+
+Current interests include understanding LLM internals and working close to model experimentation, training/adaptation, evaluation, and inference engineering. Crypto is a domain strength; applied AI interests extend beyond crypto.
+
+Some projects have public code or model links below. Others link to portfolio summaries because a public implementation URL is not available. The site uses the handle ethduke and does not publish a full CV.
+
+## Public models and project repositories
+
+- [Contract Risk Classifier — model card](https://huggingface.co/ethduke/robinhood-contract-traps-qwen3.5-0.8b-lora): Qwen3.5-0.8B fine-tuned with LoRA for questions about owner powers, transfer restrictions, and honeypot-related behavior in decompiled EVM token contracts. Work includes rule/code-lineage/LLM-teacher labels, code-shape and chronological splits, and model/baseline evaluation. The model card documents results and limitations.
+- [Gensyn peer analytics](https://github.com/ethduke/gensyn_rlswarm_leaderboard): Peer-analytics and leaderboard tooling for Gensyn's RL Swarm testnet.
+- [EIP-7702 experiments](https://github.com/ethduke/eip_7702_batch_txs): Portfolio example of EIP-7702 batch-transaction experiments and account-abstraction exploration.
+- [LLM workflow example](https://github.com/ethduke/tg_summary_openrouter): Portfolio example of an LLM workflow using OpenRouter.
+- [Trading research example](https://github.com/ethduke/dex_funding_rate_arbitrage): Portfolio example of trading and arbitrage research tooling. No profitability claim is made.
+
+## Project summaries
+
+- [Solana Bytecode Classifier](https://ethduke.github.io/#solana-bytecode-classifier): End-to-end classification pipeline combining static analysis, deterministic rules, agent-assisted annotation, a gradient-boosted-tree baseline, and Qwen3-8B LoRA. Uses temperature scaling and code-clone, newest-deployment, and launchpad-family holdouts. A read-only live shadow monitor routes model disagreements for relabelling.
+- [Program Lens](https://ethduke.github.io/#solana-bytecode-classifier): React, Next.js, and TypeScript workspace for investigating Solana classifier errors. Includes class, confidence, holdout, reference-mismatch, and tree/LoRA disagreement filters; an evidence inspector with annotation provenance; and locally exportable review proposals that preserve original labels. Described within the Solana project summary.
+- [On-chain Research Pipeline](https://ethduke.github.io/#on-chain-research-pipeline): Python pipelines that archive and decode Uniswap v2/v3/v4 events into Parquet for liquidity and wallet-flow research using Polars and NumPy. Integrates xAI Responses and X Search for structured social research with source links, contract-address checks, caching, and request limits.
+- [Farmgun](https://ethduke.github.io/#farmgun): TypeScript/Node.js crypto launch application with a web interface, authenticated agent APIs, and a local signing SDK. Integrates Grok image generation with USDG/HTTP 402 payments, spending limits, and durable recovery state for interrupted requests.
+- [Hoodra Inference Marketplace MVP — portfolio note](https://ethduke.github.io/index.md): OpenAI-compatible FastAPI inference marketplace prototype with USDG/EIP-3009 settlement, an HTTP 402 challenge/retry flow, usage accounting, seller revenue, platform fees, and buyer credits after upstream failure. Buyer credits are internal credits, not automatic on-chain refunds.
+- [RAG Retrieval Prototype — portfolio note](https://ethduke.github.io/index.md): Python retrieval prototype using PostgreSQL/pgvector, embedding retrieval, and a full-text fallback. Integrates OpenRouter embeddings and chat generation with retrieved context and prompts requesting citations and an explicit insufficient-evidence response.
+
+## Portfolio and profiles
+
+- [Text portfolio](https://ethduke.github.io/index.md): Readable project summaries, supplementary project notes, and public links.
+- [GitHub profile](https://github.com/ethduke): Public code and repositories under the ethduke handle.
+- [Hugging Face profile](https://huggingface.co/ethduke): Public model profile under the ethduke handle.
+
+## Optional
+
+- [Site source](https://github.com/ethduke/ethduke.github.io): HTML, CSS, and discovery files for this static project page.

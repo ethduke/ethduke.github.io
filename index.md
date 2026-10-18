@@ -19,6 +19,14 @@ Category: Training & evaluation.
 
 [Project summary](https://ethduke.github.io/#solana-bytecode-classifier). No public repository or demo is linked.
 
+### Program Lens
+
+Inspect Solana classifier disagreements, compare predictions and evidence, and export review notes. The live demo uses synthetic cases.
+
+Category: Model evaluation.
+
+[Live demo](https://ethduke.github.io/program-lens/).
+
 ### Contract Risk Classifier
 
 Fine-tuning and evaluating Qwen3.5 with LoRA to answer risk questions about decompiled EVM token contracts.

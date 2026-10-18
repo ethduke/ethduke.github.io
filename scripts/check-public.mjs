@@ -7,7 +7,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const allowed = [
   '.githooks/commit-msg', '.githooks/pre-commit', '.gitignore', '.nojekyll',
   'README.md', 'favicon.svg', 'index.html', 'index.md', 'llms.txt',
-  'robots.txt', 'sitemap.xml', 'scripts/check-public.mjs', 'styles.css',
+  'robots.txt', 'sitemap.xml', 'scripts/check-public.mjs', 'scripts/prepare-ipfs.mjs', 'styles.css',
 ];
 const git = (...args) => execFileSync('git', args, { cwd: root });
 const fail = message => { console.error(message); process.exit(1); };

@@ -44,3 +44,17 @@ Use the handle and GitHub noreply address for repository-local Git identity. Hoo
 ## Publishing
 
 Push reviewed commits to `main`. In GitHub Pages, use **Deploy from a branch → main → /(root)**.
+
+## IPFS mirror
+
+Export the committed website into an ignored folder:
+
+```sh
+node scripts/prepare-ipfs.mjs
+```
+
+`dist/ipfs/` contains exactly the seven public site files. It excludes Git metadata, local instructions, hooks, scripts, and this README. `dist/ipfs-manifest.json` records the source commit and file hashes outside the upload folder.
+
+Add and recursively pin **only `dist/ipfs/`**, using IPFS Desktop or Kubo with CIDv1 and raw leaves. Verify the resulting `/ipfs/<CID>/` URL before assigning `ipfs://<CID>` to an ENS contenthash record. The ENS record change must be reviewed and signed by the name's controller. Do not upload the repository root.
+
+The mirror retains the GitHub site's canonical URL and identical content. Keep the CID pinned on an available node or pinning service; local pinning alone depends on the local node staying reachable. Future site updates require a new export, pin, and ENS contenthash update.

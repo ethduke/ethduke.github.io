@@ -45,20 +45,22 @@
           "@id": "https://ethduke.github.io/#solana-bytecode-classifier",
           "url": "https://ethduke.github.io/#solana-bytecode-classifier",
           "name": "Solana Bytecode Classifier",
-          "description": "Qwen3-8B LoRA classification with calibrated probabilities and structured holdouts. Program Lens provides a workspace for reviewing predictions, evidence, and model disagreements.",
+          "description": "Qwen3-8B LoRA classification with calibrated probabilities and structured holdouts.",
           "creator": {
             "@id": "https://ethduke.github.io/#ethduke"
-          }
-        },
-        {
-          "@type": "CreativeWork",
-          "@id": "https://ethduke.github.io/#program-lens",
-          "url": "https://ethduke.github.io/program-lens/",
-          "name": "Program Lens",
-          "description": "Inspect Solana classifier disagreements, compare predictions and evidence, and export review notes. The live demo uses synthetic cases.",
-          "creator": {
-            "@id": "https://ethduke.github.io/#ethduke"
-          }
+          },
+          "hasPart": [
+            {
+              "@type": "CreativeWork",
+              "@id": "https://ethduke.github.io/#program-lens",
+              "url": "https://ethduke.github.io/program-lens/",
+              "name": "Program Lens",
+              "description": "Review workspace for this classifier: compare predictions and evidence, investigate disagreements, and export review notes. The live demo uses synthetic cases.",
+              "creator": {
+                "@id": "https://ethduke.github.io/#ethduke"
+              }
+            }
+          ]
         },
         {
           "@type": "CreativeWork",
@@ -125,17 +127,16 @@
           <article class="project" id="solana-bytecode-classifier">
             <div class="project-copy">
               <h3>Solana Bytecode Classifier</h3>
-              <p>Qwen3-8B LoRA classification with calibrated probabilities and structured holdouts. Program Lens provides a workspace for reviewing predictions, evidence, and model disagreements.</p>
+              <p>Qwen3-8B LoRA classification with calibrated probabilities and structured holdouts.</p>
+              <section class="project-tool" id="program-lens" aria-labelledby="program-lens-title">
+                <div class="tool-heading">
+                  <h4 id="program-lens-title">Program Lens</h4>
+                  <a href="https://ethduke.github.io/program-lens/" rel="noreferrer">Live demo <span aria-hidden="true">↗</span></a>
+                </div>
+                <p>Review workspace for this classifier: compare predictions and evidence, investigate disagreements, and export review notes. The live demo uses synthetic cases.</p>
+              </section>
             </div>
             <div class="project-meta"><span>Training &amp; evaluation</span><span class="note-label">Project note</span></div>
-          </article>
-
-          <article class="project" id="program-lens">
-            <div class="project-copy">
-              <h3>Program Lens</h3>
-              <p>Inspect Solana classifier disagreements, compare predictions and evidence, and export review notes. The live demo uses synthetic cases.</p>
-            </div>
-            <div class="project-meta"><span>Model evaluation</span><a href="https://ethduke.github.io/program-lens/" rel="noreferrer">Live demo <span aria-hidden="true">↗</span></a></div>
           </article>
 
           <article class="project" id="contract-risk-classifier">

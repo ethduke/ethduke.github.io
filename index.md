@@ -13,17 +13,15 @@ Website: https://ethduke.github.io/
 
 ### Solana Bytecode Classifier
 
-Qwen3-8B LoRA classification with calibrated probabilities and structured holdouts. Program Lens provides a workspace for reviewing predictions, evidence, and model disagreements.
+Qwen3-8B LoRA classification with calibrated probabilities and structured holdouts.
 
 Category: Training & evaluation.
 
-[Project summary](https://ethduke.github.io/#solana-bytecode-classifier). No public repository or demo is linked.
+[Project summary](https://ethduke.github.io/#solana-bytecode-classifier).
 
-### Program Lens
+#### Program Lens
 
-Inspect Solana classifier disagreements, compare predictions and evidence, and export review notes. The live demo uses synthetic cases.
-
-Category: Model evaluation.
+Review workspace for this classifier: compare predictions and evidence, investigate disagreements, and export review notes. The live demo uses synthetic cases.
 
 [Live demo](https://ethduke.github.io/program-lens/).
 

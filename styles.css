@@ -44,6 +44,11 @@ h1 em { font-family: Georgia, "Times New Roman", serif; font-weight: 400; color:
 .project { display: grid; grid-template-columns: minmax(0, 1fr) 155px; gap: 28px; padding: 24px 0; border-top: 1px solid var(--rule); }
 .project h3 { font-size: 17px; line-height: 1.35; font-weight: 500; letter-spacing: -.25px; margin: 0 0 8px; }
 .project p { max-width: 540px; font-size: 14px; line-height: 1.7; color: var(--muted); margin: 0; }
+.project-tool { margin-top: 18px; padding-left: 16px; border-left: 2px solid var(--rule); }
+.tool-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 6px; }
+.project-tool h4 { margin: 0; font-size: 15px; line-height: 1.4; font-weight: 500; }
+.tool-heading a { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; white-space: nowrap; font-size: 12px; }
+.project-tool p { font-size: 13px; }
 .project-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; line-height: 1.5; color: var(--muted); }
 .project-meta a { color: var(--ink); display: inline-flex; gap: 5px; min-height: 44px; align-items: center; }
 .note-label { font-size: 11px; }

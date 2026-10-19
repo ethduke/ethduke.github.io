@@ -1,61 +1,60 @@
-# ethduke
-
-> Exploring applied AI and crypto through model training, evaluation, research pipelines, and agent tooling.
+# Research portfolio
 
 Website: https://ethduke.github.io/
 
-## Profiles
+[GitHub](https://github.com/ethduke) · [Hugging Face](https://huggingface.co/ethduke)
 
-- [GitHub](https://github.com/ethduke)
-- [Hugging Face](https://huggingface.co/ethduke)
-
-## Projects
-
-### MemeSieve
-
-A small memecoin algo-trading bot on Robinhood Chain. Uses my LoRA risk model, trained on Robinhood rug examples, for token evaluation, with Grok/X Search research paid per request through x402.
-
-Tech: Python, Web3.py, Polars, SQLite, HTML/CSS/JavaScript; x402 v2 with USDG/EIP-3009 payments.
-
-[Live site](https://memesieve.xyz/).
+## Selected work
 
 ### Solana Bytecode Classifier
 
-Qwen3-8B LoRA classification with calibrated probabilities and structured holdouts.
+A pipeline for classifying deployed Solana programs, combining data preparation, model fine-tuning and holdout evaluation, with a workspace for inspecting classification errors.
 
-Category: Training & evaluation.
+[Program Lens demo](https://ethduke.github.io/program-lens/) (synthetic cases).
 
-[Project summary](https://ethduke.github.io/#solana-bytecode-classifier).
-
-#### Program Lens
-
-Review workspace for this classifier: compare predictions and evidence, investigate disagreements, and export review notes. The live demo uses synthetic cases.
-
-[Live demo](https://ethduke.github.io/program-lens/).
+Tools used: Qwen3-8B, LoRA, Claude Sonnet, React, TypeScript.
 
 ### Contract Risk Classifier
 
-Fine-tuning and evaluating Qwen3.5 with LoRA to answer risk questions about decompiled EVM token contracts.
+A language model fine-tuned to analyze risk-related behavior in EVM contracts.
 
-Category: Applied ML.
+[View published model](https://huggingface.co/ethduke/robinhood-contract-traps-qwen3.5-0.8b-lora).
 
-[Model card](https://huggingface.co/ethduke/robinhood-contract-traps-qwen3.5-0.8b-lora).
+Tools used: Python, PyTorch, Hugging Face Transformers, PEFT / LoRA, Qwen3.5-0.8B.
 
 ### On-chain Research Pipeline
 
-Uniswap event decoding, Parquet datasets, and liquidity and wallet-flow research with Python and Polars.
+Python tooling for liquidity and wallet-flow research, with historical trading-rule experiments.
 
-Category: Data & research.
+Tools used: Python, Polars, NumPy, Parquet, xAI Responses API.
 
-[Project summary](https://ethduke.github.io/#on-chain-research-pipeline). No public repository or demo is linked.
+### MemeSieve
+
+A memecoin trading bot on Robinhood Chain with on-chain monitoring, model-assisted token evaluation and Grok research.
+
+[View project](https://memesieve.xyz/).
+
+Tools used: Python, Web3.py, Polars, SQLite, xAI Responses API.
 
 ### Farmgun
 
-A crypto launch application with agent APIs, paid image generation, and recovery of interrupted workflows.
+A crypto launch application with authenticated agent APIs, paid image generation and recovery of interrupted workflows.
 
-Category: Agent tooling.
+Tools used: TypeScript, Node.js, Grok image generation, HTTP 402, USDG.
 
-[Project summary](https://ethduke.github.io/#farmgun). No public repository or demo is linked.
+## Experiments
+
+- [Gensyn RL Swarm peer analytics](https://github.com/ethduke/gensyn_rlswarm_leaderboard)
+- [EIP-7702 batch transaction experiments](https://github.com/ethduke/eip_7702_batch_txs)
+- [LLM workflow example with OpenRouter](https://github.com/ethduke/tg_summary_openrouter)
+
+## About
+
+I started with GPU programming at university, implementing an iterative algorithm for global optical flow in CUDA. I then moved into mobile app and game development for iOS and Android.
+
+Later, my focus shifted to crypto: investing my own capital and building tools for on-chain research, portfolio monitoring, trading and arbitrage experiments.
+
+More recently, I’ve returned to my earlier interest in AI, working on model fine-tuning, evaluation and ML tools.
 
 ## Additional project notes
 
@@ -71,15 +70,4 @@ Python retrieval prototype using PostgreSQL/pgvector, embedding retrieval, and a
 
 No public repository or demo is linked.
 
-## Code & experiments
-
-- [Gensyn peer analytics](https://github.com/ethduke/gensyn_rlswarm_leaderboard)
-- [EIP-7702 experiments](https://github.com/ethduke/eip_7702_batch_txs)
-- [LLM workflow example](https://github.com/ethduke/tg_summary_openrouter)
-- [Trading research example](https://github.com/ethduke/dex_funding_rate_arbitrage)
-
-## Site source
-
-- [Website repository](https://github.com/ethduke/ethduke.github.io)
-
-This page contains public project summaries under the handle ethduke. It does not publish a full CV or establish employment dates, qualifications, deployment scale, or adoption beyond the descriptions above.
+[Site source](https://github.com/ethduke/ethduke.github.io).

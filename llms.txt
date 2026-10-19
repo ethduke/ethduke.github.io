@@ -1,4 +1,4 @@
-# ethduke
+# Research portfolio
 
 > Independent researcher and software builder working across applied AI/ML, crypto R&D, on-chain data analysis, and agent tooling.
 
@@ -13,9 +13,9 @@ Some projects have public code or model links below. Others link to portfolio su
 ## Public models and project repositories
 
 - [Contract Risk Classifier — model card](https://huggingface.co/ethduke/robinhood-contract-traps-qwen3.5-0.8b-lora): Qwen3.5-0.8B fine-tuned with LoRA for questions about owner powers, transfer restrictions, and honeypot-related behavior in decompiled EVM token contracts. Work includes rule/code-lineage/LLM-teacher labels, code-shape and chronological splits, and model/baseline evaluation. The model card documents results and limitations.
-- [Gensyn peer analytics](https://github.com/ethduke/gensyn_rlswarm_leaderboard): Peer-analytics and leaderboard tooling for Gensyn's RL Swarm testnet.
-- [EIP-7702 experiments](https://github.com/ethduke/eip_7702_batch_txs): Portfolio example of EIP-7702 batch-transaction experiments and account-abstraction exploration.
-- [LLM workflow example](https://github.com/ethduke/tg_summary_openrouter): Portfolio example of an LLM workflow using OpenRouter.
+- [Gensyn RL Swarm peer analytics](https://github.com/ethduke/gensyn_rlswarm_leaderboard): Peer-analytics and leaderboard tooling for Gensyn's RL Swarm testnet.
+- [EIP-7702 batch transaction experiments](https://github.com/ethduke/eip_7702_batch_txs): Portfolio example of EIP-7702 batch-transaction experiments and account-abstraction exploration.
+- [LLM workflow example with OpenRouter](https://github.com/ethduke/tg_summary_openrouter): Portfolio example of an LLM workflow using OpenRouter.
 - [Trading research example](https://github.com/ethduke/dex_funding_rate_arbitrage): Portfolio example of trading and arbitrage research tooling. No profitability claim is made.
 
 ## Project summaries
@@ -38,3 +38,9 @@ Some projects have public code or model links below. Others link to portfolio su
 ## Optional
 
 - [Site source](https://github.com/ethduke/ethduke.github.io): HTML, CSS, and discovery files for this static project page.
+
+## Background
+
+University GPU programming included an iterative CUDA algorithm for global optical flow. Later work moved into mobile app and game development, then crypto private investing and tools for on-chain research, monitoring, trading and arbitrage experiments. The current focus returns to an earlier interest in AI through model fine-tuning, evaluation and ML tools.
+
+The homepage presents five selected projects, each with a closed-by-default disclosure containing five tools, followed by experiment links and an About section. Its white background and plain sans-serif text are fixed presentation choices.

@@ -118,6 +118,23 @@ test('version sequence remains monotonic even if the clock moves backwards', asy
   const result = await updatePointer({ cid, key: h.key, name: h.name, context, fetcher, now: () => 1, delay: noDelay });
   assert.equal(result.sequence, '8000001'); assert.equal(result.previousCid, older);
 });
+test('pointer reads bypass a cached previous record and validate the new signed response', async () => {
+  const h = await harness();
+  const previous = marshalIPNSRecord(await createIPNSRecord(h.key, `/ipfs/${older}`, 1n, 3_600_000));
+  let latest = previous;
+  const fetched = [];
+  const fetcher = async (url, options = {}) => {
+    if (url.includes('api.github.com')) return Response.json({ object: { sha: context.sha } });
+    if (options.method === 'PUT') { latest = options.body; return new Response(); }
+    fetched.push(url);
+    return new Response(new URL(url).searchParams.has('verification') ? latest : previous, { headers: { 'Content-Type': 'application/vnd.ipfs.ipns-record' } });
+  };
+  const result = await updatePointer({ cid, key: h.key, name: h.name, context, fetcher, delay: noDelay });
+  assert.equal(result.previousCid, older);
+  assert.ok(BigInt(result.sequence) > 1n);
+  assert.equal(new Set(fetched).size, fetched.length);
+  assert.ok(fetched.every(url => new URL(url).searchParams.has('verification')));
+});
 test('raw network failures and authentication responses do not escape as diagnostics', async () => {
   const fetcher = async () => { throw Error('DO_NOT_LOG_THIS_SENTINEL'); };
   await assert.rejects(assertFreshHead(context, fetcher, noDelay), error => error instanceof PublishError && error.message === 'NETWORK_REQUEST_FAILED' && !String(error).includes('SENTINEL'));

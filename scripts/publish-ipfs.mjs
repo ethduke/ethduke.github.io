@@ -123,8 +123,10 @@ export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait
   }
   fail('PUBLIC_GATEWAY_NOT_VERIFIED');
 }
-async function currentRecord(name, key, fetcher, delay) {
-  const response = await request(fetcher, delegated + name, { headers: { Accept: 'application/vnd.ipfs.ipns-record' } }, 2, delay);
+async function currentRecord(name, key, fetcher, delay, nonce) {
+  // The routing CDN caches successful GETs for the record TTL, including after PUT.
+  const url = delegated + name + '?verification=' + encodeURIComponent(nonce);
+  const response = await request(fetcher, url, { headers: { Accept: 'application/vnd.ipfs.ipns-record', 'Cache-Control': 'no-cache' } }, 2, delay);
   if (response.status === 404) return null;
   if (!response.ok) fail('IPNS_READ_FAILED', response.status);
   // Routing API §6.1.2: a 200 response with another media type means no record.
@@ -144,7 +146,7 @@ async function currentRecord(name, key, fetcher, delay) {
 }
 export async function updatePointer({ cid, key, name, context, fetcher = fetch, delay = wait, now = Date.now, progress = async () => {} }) {
   contentCid(cid);
-  const previous = await currentRecord(name, key, fetcher, delay);
+  const previous = await currentRecord(name, key, fetcher, delay, `previous-${now()}`);
   const clock = BigInt(now()) * 1000n;
   const sequence = previous && previous.sequence >= clock ? previous.sequence + 1n : clock;
   const record = await createIPNSRecord(key, `/ipfs/${cid}`, sequence, 72 * 60 * 60 * 1000, { ttlNs: 300_000_000_000n, v1Compatible: false });
@@ -155,7 +157,7 @@ export async function updatePointer({ cid, key, name, context, fetcher = fetch, 
   const response = await request(fetcher, delegated + name, { method: 'PUT', headers: { 'Content-Type': 'application/vnd.ipfs.ipns-record' }, body: bytes });
   if (!response.ok) fail('IPNS_PUBLISH_FAILED', response.status);
   for (let attempt = 0; attempt < 8; attempt++) {
-    const observed = await currentRecord(name, key, fetcher, delay);
+    const observed = await currentRecord(name, key, fetcher, delay, `${sequence}-${attempt}`);
     if (observed?.value === `/ipfs/${cid}` && observed.sequence >= sequence) return { previousCid: previous?.value.slice(6) ?? null, sequence: observed.sequence.toString(), validUntil: observed.validity };
     if (observed && observed.sequence > sequence) fail('CONCURRENT_IPNS_PUBLISHER');
     await delay(3000);

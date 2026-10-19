@@ -27,6 +27,9 @@ main { padding: 24px 0 30px; }
 .category { font-size: 12px; color: var(--muted); margin-top: 5px; }
 .project-copy p + p { margin-top: 8px; }
 .secondary { color: var(--muted); font-size: 12px; }
+.subproject { margin-top: 14px; padding-left: 14px; border-left: 2px solid var(--rule); }
+.subproject h4 { font-size: 13px; line-height: 1.5; font-weight: 600; margin: 0 0 5px; }
+.subproject p { font-size: 13px; color: var(--muted); }
 .project-tools { margin-top: 12px; color: var(--muted); font-size: 13px; }
 .project-tools summary { width: fit-content; min-height: 24px; cursor: pointer; }
 .tool-list { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 0; margin: 10px 0 0; }

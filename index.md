@@ -42,6 +42,10 @@ A crypto launch application with authenticated agent APIs, paid image generation
 
 Tools: TypeScript, Node.js, Grok image generation, HTTP 402, USDG.
 
+#### Data-quality dashboard
+
+[Farmgun data-quality dashboard](https://ethduke.github.io/farmgun-dashboard/): Incremental backfills, normalized SQL tables and reconciliation checks, with recovery tests for duplicate events, missing blocks and recorded reorg scenarios.
+
 ## Experiments
 
 - [Gensyn RL Swarm peer analytics](https://github.com/ethduke/gensyn_rlswarm_leaderboard)

@@ -13,7 +13,7 @@
   <title>Research portfolio · ethduke</title>
   <link rel="canonical" href="https://ethduke.github.io/">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=research-portfolio-20261019">
+  <link rel="stylesheet" href="./styles.css?v=research-portfolio-20261019-farmgun-dashboard">
   <link rel="alternate" type="text/markdown" href="./index.md" title="Project summaries in Markdown">
   <link rel="describedby" type="text/plain" href="./llms.txt">
   <script type="application/ld+json">
@@ -81,7 +81,13 @@
             "name": "Farmgun",
             "url": "https://ethduke.github.io/#farmgun",
             "description": "A crypto launch application with authenticated agent APIs, paid image generation and recovery of interrupted workflows.",
-            "creator": {"@id": "https://ethduke.github.io/#ethduke"}
+            "creator": {"@id": "https://ethduke.github.io/#ethduke"},
+            "hasPart": {
+              "@type": "CreativeWork",
+              "name": "Farmgun data-quality dashboard",
+              "url": "https://ethduke.github.io/farmgun-dashboard/",
+              "description": "Incremental backfills, normalized SQL tables and reconciliation checks, with recovery tests for duplicate events, missing blocks and recorded reorg scenarios."
+            }
           }
         ]
       }
@@ -154,6 +160,10 @@
           <div class="project-heading"><h3>Farmgun</h3><p class="category">Agent tooling</p></div>
           <div class="project-copy">
             <p>A crypto launch application with authenticated agent APIs, paid image generation and recovery of interrupted workflows.</p>
+            <div class="subproject" id="farmgun-dashboard">
+              <h4><a href="https://ethduke.github.io/farmgun-dashboard/">Data-quality dashboard</a></h4>
+              <p>Incremental backfills, normalized SQL tables and reconciliation checks, with recovery tests for duplicate events, missing blocks and recorded reorg scenarios.</p>
+            </div>
             <details class="project-tools">
               <summary aria-label="Tools for Farmgun">Tools</summary>
               <ul class="tool-list"><li>TypeScript</li><li>Node.js</li><li>Grok image generation</li><li>HTTP 402</li><li>USDG</li></ul>

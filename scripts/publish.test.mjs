@@ -5,7 +5,7 @@ import { generateKeyPair, privateKeyToProtobuf } from '@libp2p/crypto/keys';
 import { base36 } from 'multiformats/bases/base36';
 import { createIPNSRecord, marshalIPNSRecord, unmarshalIPNSRecord } from 'ipns';
 import { validate } from 'ipns/validator';
-import { release, assertFreshHead, signingKey, updatePointer, verifyPages, PublishError } from './publish-ipfs.mjs';
+import { release, assertFreshHead, signingKey, updatePointer, verifyPages, uploadFailure, PublishError } from './publish-ipfs.mjs';
 import { keepSchedule } from './keep-schedule.mjs';
 
 const cid = 'bafybeicn4yud4kazwvwkhsdp4eeeown5hjqn4bznpngc6imbhzuqiuwuka';
@@ -145,4 +145,12 @@ test('an IPNS record signed by another identity cannot affect sequence or destin
   const h = await harness({ previous: record });
   await assert.rejects(release(h.args), { code: 'INVALID_IPNS_RECORD' });
   assert.equal(h.calls.filter(call => call.method === 'PUT').length, 0);
+});
+test('Pinata rejections distinguish plan, scope and storage failures without exposing response bodies', async () => {
+  for (const [body, code] of [
+    ['CAR uploads require a paid plan. DO_NOT_LOG_THIS_SENTINEL', 'PINATA_CAR_PLAN_RESTRICTION'],
+    ['Missing org:files:write permission. DO_NOT_LOG_THIS_SENTINEL', 'PINATA_UPLOAD_PERMISSION_MISSING'],
+    ['Storage limit exceeded. DO_NOT_LOG_THIS_SENTINEL', 'PINATA_STORAGE_LIMIT'],
+    ['Forbidden. DO_NOT_LOG_THIS_SENTINEL', 'PINATA_UPLOAD_FAILED'],
+  ]) await assert.rejects(uploadFailure(new Response(body, { status: 403 })), error => error.code === code && !String(error).includes('SENTINEL'));
 });

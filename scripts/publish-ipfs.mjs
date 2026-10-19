@@ -61,6 +61,16 @@ async function existingPin(cid, token, fetcher, delay) {
   if (!Array.isArray(data.data?.files)) fail('INVALID_PROVIDER_RESPONSE');
   return data.data.files.some(file => file.cid === cid);
 }
+export async function uploadFailure(response) {
+  // Provider bodies can contain identifiers or credentials. Emit fixed codes only.
+  let description = '';
+  try { description = (await response.text()).slice(0, 16_384).toLowerCase(); } catch {}
+  if (/car[\s\S]{0,160}(paid|plan|tier|upgrade)|(?:paid|plan|tier)[\s\S]{0,160}car/.test(description)) fail('PINATA_CAR_PLAN_RESTRICTION', response.status);
+  if (/org:files:write|permission|scope|not authorized to (upload|write)|cannot (upload|write)/.test(description)) fail('PINATA_UPLOAD_PERMISSION_MISSING', response.status);
+  if (/quota|storage limit|usage limit|insufficient credits|maximum storage/.test(description)) fail('PINATA_STORAGE_LIMIT', response.status);
+  if (/cloudflare|cf-error|challenge-platform/.test(description)) fail('PINATA_EDGE_REJECTION', response.status);
+  fail('PINATA_UPLOAD_FAILED', response.status);
+}
 export async function pinCar(cid, car, token, fetcher = fetch, delay = wait) {
   contentCid(cid);
   if (!token) fail('PINATA_TOKEN_MISSING');
@@ -71,7 +81,7 @@ export async function pinCar(cid, car, token, fetcher = fetch, delay = wait) {
   body.append('file', new Blob([car], { type: 'application/vnd.ipld.car' }), 'portfolio.car');
   // An ambiguous POST is never repeated automatically.
   const response = await request(fetcher, pinataUpload, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body });
-  if (!response.ok) fail('PINATA_UPLOAD_FAILED', response.status);
+  if (!response.ok) await uploadFailure(response);
   const result = await json(response);
   if (result.data?.cid && result.data.cid !== cid) fail('PINATA_CID_MISMATCH');
   if (!result.data?.id) fail('INVALID_PROVIDER_RESPONSE');

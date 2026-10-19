@@ -9,7 +9,7 @@ Website: https://ethduke.github.io/
 - [GitHub](https://github.com/ethduke)
 - [Hugging Face](https://huggingface.co/ethduke)
 
-## Selected work
+## Projects
 
 ### MemeSieve
 

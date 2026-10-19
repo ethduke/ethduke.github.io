@@ -16,6 +16,7 @@ Some projects have public code or model links below. Others link to portfolio su
 - [Gensyn RL Swarm peer analytics](https://github.com/ethduke/gensyn_rlswarm_leaderboard): Peer-analytics and leaderboard tooling for Gensyn's RL Swarm testnet.
 - [EIP-7702 batch transaction experiments](https://github.com/ethduke/eip_7702_batch_txs): Portfolio example of EIP-7702 batch-transaction experiments and account-abstraction exploration.
 - [LLM workflow example with OpenRouter](https://github.com/ethduke/tg_summary_openrouter): Portfolio example of an LLM workflow using OpenRouter.
+- [Starknet legacy account upgrades and STRK consolidation](https://github.com/ethduke/starknet-funds-manager): Tooling to upgrade outdated Starknet accounts and consolidate token balances into STRK. No account-age or recovery-outcome claim is made.
 - [Trading research example](https://github.com/ethduke/dex_funding_rate_arbitrage): Portfolio example of trading and arbitrage research tooling. No profitability claim is made.
 
 ## Project summaries

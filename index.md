@@ -10,7 +10,7 @@ Website: https://ethduke.github.io/
 
 A pipeline for classifying deployed Solana programs, combining data preparation, model fine-tuning and holdout evaluation, with a workspace for inspecting classification errors.
 
-[Program Lens demo](https://ethduke.github.io/program-lens/) (synthetic cases).
+[Program Lens workspace](https://ethduke.github.io/program-lens/).
 
 Tools: Qwen3-8B, LoRA, Claude Sonnet, React, TypeScript.
 
@@ -47,6 +47,7 @@ Tools: TypeScript, Node.js, Grok image generation, HTTP 402, USDG.
 - [Gensyn RL Swarm peer analytics](https://github.com/ethduke/gensyn_rlswarm_leaderboard)
 - [EIP-7702 batch transaction experiments](https://github.com/ethduke/eip_7702_batch_txs)
 - [LLM workflow example with OpenRouter](https://github.com/ethduke/tg_summary_openrouter)
+- [Starknet legacy account upgrades and STRK consolidation](https://github.com/ethduke/starknet-funds-manager)
 
 ## About
 

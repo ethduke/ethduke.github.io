@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <meta name="referrer" content="no-referrer">
-    <meta name="description" content="ethduke's projects in applied AI, model evaluation, on-chain data, and agent tooling.">
-    <meta property="og:title" content="ethduke — projects & experiments">
-    <meta property="og:description" content="Applied AI, model evaluation, on-chain data, and agent tooling.">
+    <meta name="description" content="ethduke's applied AI and crypto projects: LoRA risk models, MemeSieve on Robinhood Chain, on-chain data, and x402-powered Grok research.">
+    <meta property="og:title" content="ethduke — applied AI, crypto & MemeSieve">
+    <meta property="og:description" content="ethduke's applied AI and crypto projects: LoRA risk models, MemeSieve on Robinhood Chain, on-chain data, and x402-powered Grok research.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://ethduke.github.io/">
-    <title>ethduke — projects & experiments</title>
+    <title>ethduke — applied AI, crypto & MemeSieve</title>
     <link rel="canonical" href="https://ethduke.github.io/">
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="./styles.css?v=cf4cfa16342a">
@@ -34,12 +34,22 @@
       "@type": "ProfilePage",
       "@id": "https://ethduke.github.io/#page",
       "url": "https://ethduke.github.io/",
-      "name": "ethduke — projects & experiments",
-      "description": "Exploring applied AI and crypto through model training, evaluation, research pipelines, and agent tooling.",
+      "name": "ethduke \u2014 applied AI, crypto & MemeSieve",
+      "description": "ethduke's applied AI and crypto projects: LoRA risk models, MemeSieve on Robinhood Chain, on-chain data, and x402-powered Grok research.",
       "mainEntity": {
         "@id": "https://ethduke.github.io/#ethduke"
       },
       "hasPart": [
+        {
+          "@type": "CreativeWork",
+          "@id": "https://ethduke.github.io/#memesieve",
+          "url": "https://memesieve.xyz/",
+          "name": "MemeSieve",
+          "description": "A small memecoin algo-trading bot on Robinhood Chain. Uses my LoRA risk model, trained on Robinhood rug examples, for token evaluation, with Grok/X Search research paid per request through x402.",
+          "creator": {
+            "@id": "https://ethduke.github.io/#ethduke"
+          }
+        },
         {
           "@type": "CreativeWork",
           "@id": "https://ethduke.github.io/#solana-bytecode-classifier",
@@ -123,6 +133,15 @@
 
         <section id="projects" aria-labelledby="projects-title">
           <h2 id="projects-title" class="section-heading">Selected work</h2>
+
+          <article class="project" id="memesieve">
+            <div class="project-copy">
+              <h3>MemeSieve</h3>
+              <p>A small memecoin algo-trading bot on Robinhood Chain. Uses my LoRA risk model, trained on Robinhood rug examples, for token evaluation, with Grok/X Search research paid per request through x402.</p>
+              <p>Python, Web3.py, Polars, SQLite, HTML/CSS/JavaScript.</p>
+            </div>
+            <div class="project-meta"><span>Algo trading &amp; applied ML</span><a href="https://memesieve.xyz/" rel="noreferrer">Live site <span aria-hidden="true">↗</span></a></div>
+          </article>
 
           <article class="project" id="solana-bytecode-classifier">
             <div class="project-copy">

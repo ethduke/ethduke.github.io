@@ -11,6 +11,14 @@ Website: https://ethduke.github.io/
 
 ## Selected work
 
+### MemeSieve
+
+A small memecoin algo-trading bot on Robinhood Chain. Uses my LoRA risk model, trained on Robinhood rug examples, for token evaluation, with Grok/X Search research paid per request through x402.
+
+Tech: Python, Web3.py, Polars, SQLite, HTML/CSS/JavaScript; x402 v2 with USDG/EIP-3009 payments.
+
+[Live site](https://memesieve.xyz/).
+
 ### Solana Bytecode Classifier
 
 Qwen3-8B LoRA classification with calibrated probabilities and structured holdouts.

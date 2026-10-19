@@ -12,7 +12,7 @@ import { base36 } from 'multiformats/bases/base36';
 
 const delegated = 'https://delegated-ipfs.dev/routing/v1/ipns/';
 const pinataApi = 'https://api.pinata.cloud/v3/files/public';
-const pinataUpload = 'https://uploads.pinata.cloud/v3/files';
+const pinataUpload = 'https://api.pinata.cloud/pinning/pinFileToIPFS';
 const transient = new Set([429, 500, 502, 503, 504]);
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 export class PublishError extends Error {
@@ -71,25 +71,24 @@ export async function uploadFailure(response) {
   if (/cloudflare|cf-error|challenge-platform/.test(description)) fail('PINATA_EDGE_REJECTION', response.status);
   fail('PINATA_UPLOAD_FAILED', response.status);
 }
-export async function pinCar(cid, car, token, fetcher = fetch, delay = wait) {
+export async function pinBundle(cid, files, token, fetcher = fetch, delay = wait) {
   contentCid(cid);
   if (!token) fail('PINATA_TOKEN_MISSING');
   if (await existingPin(cid, token, fetcher, delay)) return 'existing';
   const body = new FormData();
-  body.append('network', 'public'); body.append('car', 'true');
-  body.append('name', `ethduke-portfolio-${cid}`);
-  body.append('file', new Blob([car], { type: 'application/vnd.ipld.car' }), 'portfolio.car');
+  for (const file of files) {
+    if (!['index.html', 'styles.css', 'favicon.svg', 'index.md', 'llms.txt', 'robots.txt', 'sitemap.xml'].includes(file.name)) fail('INVALID_RELEASE_MANIFEST');
+    body.append('file', new Blob([file.bytes]), `portfolio/${file.name}`);
+  }
+  body.append('pinataOptions', JSON.stringify({ cidVersion: 1 }));
+  body.append('pinataMetadata', JSON.stringify({ name: `ethduke-portfolio-${cid}` }));
   // An ambiguous POST is never repeated automatically.
   const response = await request(fetcher, pinataUpload, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body });
   if (!response.ok) await uploadFailure(response);
   const result = await json(response);
-  if (result.data?.cid && result.data.cid !== cid) fail('PINATA_CID_MISMATCH');
-  if (!result.data?.id) fail('INVALID_PROVIDER_RESPONSE');
-  for (let attempt = 0; attempt < 12; attempt++) {
-    if (await existingPin(cid, token, fetcher, delay)) return 'uploaded';
-    await delay(5000);
-  }
-  fail('PINATA_PIN_UNCONFIRMED');
+  if (result.IpfsHash !== cid) fail('PINATA_CID_MISMATCH');
+  if (!Number.isFinite(result.PinSize) || result.PinSize <= 0) fail('INVALID_PROVIDER_RESPONSE');
+  return 'uploaded';
 }
 export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait) {
   contentCid(cid);
@@ -143,13 +142,13 @@ export async function updatePointer({ cid, key, name, context, fetcher = fetch, 
   }
   fail('IPNS_PUBLISH_UNVERIFIED');
 }
-export async function release({ cid, car, manifest, encodedKey, config, context, token, fetcher = fetch, delay = wait, progress = async () => {} }) {
+export async function release({ cid, files, manifest, encodedKey, config, context, token, fetcher = fetch, delay = wait, progress = async () => {} }) {
   if (manifest.repository !== config.repository || manifest.sourceCommit !== context.sha) fail('RELEASE_PROVENANCE_MISMATCH');
   if (!token) fail('PINATA_TOKEN_MISSING');
   const key = signingKey(encodedKey, config.ipnsName);
   await assertFreshHead(context, fetcher, delay);
   await progress({ state: 'pinning' });
-  const pin = await pinCar(cid, car, token, fetcher, delay);
+  const pin = await pinBundle(cid, files, token, fetcher, delay);
   await progress({ state: 'pinned', pin });
   const gateway = await verifyGateway(cid, manifest, fetcher, delay);
   await progress({ state: 'verified', gateway });
@@ -187,11 +186,13 @@ async function main() {
     await verifyPages(manifest);
     // Confirm that the assembled, committed export still matches its manifest.
     const expected = ['index.html', 'styles.css', 'favicon.svg', 'index.md', 'llms.txt', 'robots.txt', 'sitemap.xml'];
+    const files = [];
     if (manifest.files.length !== expected.length || new Set(manifest.files.map(file => file.name)).size !== expected.length || (await readdir(resolve(dist, 'ipfs'))).sort().join() !== [...expected].sort().join()) fail('INVALID_RELEASE_MANIFEST');
     for (const file of manifest.files) {
       if (!expected.includes(file.name) || !(await lstat(resolve(dist, 'ipfs', file.name))).isFile() || (await lstat(resolve(dist, 'ipfs', file.name))).isSymbolicLink()) fail('INVALID_RELEASE_MANIFEST');
       const bytes = await readFile(resolve(dist, 'ipfs', file.name));
       if (bytes.length !== file.bytes || createHash('sha256').update(bytes).digest('hex') !== file.sha256) fail('RELEASE_BYTES_CHANGED');
+      files.push({ name: file.name, bytes });
     }
     const repo = resolve(process.env.RUNNER_TEMP, 'portfolio-ipfs');
     const env = { PATH: process.env.PATH, IPFS_PATH: repo, HOME: process.env.HOME };
@@ -199,10 +200,9 @@ async function main() {
     await command('ipfs', ['init', '--profile=server'], { env, timeout: 30_000 });
     const added = await command('ipfs', ['add', '--offline', '--recursive', '--cid-version=1', '--raw-leaves=true', '--chunker=size-262144', '--pin=false', '--quieter', resolve(dist, 'ipfs')], { env, timeout: 30_000 });
     const cid = contentCid(added.stdout.trim()).toString();
-    const exported = await command('ipfs', ['dag', 'export', '--offline', cid], { env, encoding: 'buffer', timeout: 30_000, maxBuffer: 4 * 1024 * 1024 });
     result = { ...result, cid, ipnsName: config.ipnsName, workflowRun: process.env.GITHUB_RUN_ID };
     await progress({ state: 'prepared' });
-    await release({ cid, car: exported.stdout, manifest, encodedKey: process.env.IPNS_PRIVATE_KEY, config, context, token: process.env.PINATA_JWT, progress });
+    await release({ cid, files, manifest, encodedKey: process.env.IPNS_PRIVATE_KEY, config, context, token: process.env.PINATA_JWT, progress });
     if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## Portfolio published\n\n- Commit: \`${context.sha}\`\n- IPFS: \`${cid}\`\n- Shared address: \`ipns://${config.ipnsName}\`\n- Previous CID: \`${result.previousCid ?? 'initial publication'}\`\n- Valid until: ${result.validUntil}\n\nENS and Gwei must each use the shared IPNS address once.\n`);
     console.log('IPFS_PINNED_AND_IPNS_VERIFIED');
   } catch (error) {

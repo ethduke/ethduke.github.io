@@ -24,11 +24,12 @@ async function harness(options = {}) {
     const method = request.method || 'GET'; calls.push({ url, method });
     if (url.includes('api.github.com')) { headReads++; return Response.json({ object: { sha: options.stale || (options.staleLate && headReads > 1) ? 'b'.repeat(40) : context.sha } }); }
     if (url.includes('api.pinata.cloud/v3/files/public')) return Response.json({ data: { files: pinned ? [{ cid }] : [] } });
-    if (url.includes('uploads.pinata.cloud')) {
+    if (url.includes('/pinning/pinFileToIPFS')) {
       if (options.uploadStatus) return Response.json({ error: 'DO_NOT_LOG_THIS_SENTINEL' }, { status: options.uploadStatus });
       assert.equal(request.redirect, 'error');
-      assert.equal(request.body.get('network'), 'public'); assert.equal(request.body.get('car'), 'true');
-      pinned = true; return Response.json({ data: { id: 'test-file', cid: options.wrongCid ? older : cid } });
+      assert.equal(JSON.parse(request.body.get('pinataOptions')).cidVersion, 1);
+      assert.deepEqual(request.body.getAll('file').map(file => file.name), ['portfolio/index.html', 'portfolio/styles.css']);
+      pinned = true; return Response.json({ IpfsHash: options.wrongCid ? older : cid, PinSize: 100 });
     }
     if (url.includes('/ipfs/')) {
       if (options.gatewayFailure) return new Response('unavailable', { status: 503 });
@@ -40,11 +41,11 @@ async function harness(options = {}) {
     }
     throw Error('Unexpected mocked endpoint');
   };
-  const args = { cid, car: Buffer.from('synthetic CAR fixture'), manifest, encodedKey: Buffer.from(privateKeyToProtobuf(key)).toString('base64'), config, context, token: 'test', fetcher, delay: noDelay, progress: async stage => stages.push(stage) };
+  const args = { cid, files: [...files].map(([name, bytes]) => ({ name, bytes })), manifest, encodedKey: Buffer.from(privateKeyToProtobuf(key)).toString('base64'), config, context, token: 'test', fetcher, delay: noDelay, progress: async stage => stages.push(stage) };
   return { key, name, calls, stages, args, current: () => record };
 }
 
-test('successful release uploads exact CAR root, verifies public bytes, signs and reads back IPNS', async () => {
+test('successful release uploads the folder, checks its exact CID and public bytes, then signs and reads back IPNS', async () => {
   const h = await harness(); const result = await release(h.args);
   assert.equal(result.previousCid, null);
   const record = unmarshalIPNSRecord(h.current());

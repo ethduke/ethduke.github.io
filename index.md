@@ -12,7 +12,7 @@ A pipeline for classifying deployed Solana programs, combining data preparation,
 
 [Program Lens demo](https://ethduke.github.io/program-lens/) (synthetic cases).
 
-Tools used: Qwen3-8B, LoRA, Claude Sonnet, React, TypeScript.
+Tools: Qwen3-8B, LoRA, Claude Sonnet, React, TypeScript.
 
 ### Contract Risk Classifier
 
@@ -20,13 +20,13 @@ A language model fine-tuned to analyze risk-related behavior in EVM contracts.
 
 [View published model](https://huggingface.co/ethduke/robinhood-contract-traps-qwen3.5-0.8b-lora).
 
-Tools used: Python, PyTorch, Hugging Face Transformers, PEFT / LoRA, Qwen3.5-0.8B.
+Tools: Python, PyTorch, Hugging Face Transformers, PEFT / LoRA, Qwen3.5-0.8B.
 
 ### On-chain Research Pipeline
 
 Python tooling for liquidity and wallet-flow research, with historical trading-rule experiments.
 
-Tools used: Python, Polars, NumPy, Parquet, xAI Responses API.
+Tools: Python, Polars, NumPy, Parquet, xAI Responses API.
 
 ### MemeSieve
 
@@ -34,13 +34,13 @@ A memecoin trading bot on Robinhood Chain with on-chain monitoring, model-assist
 
 [View project](https://memesieve.xyz/).
 
-Tools used: Python, Web3.py, Polars, SQLite, xAI Responses API.
+Tools: Python, Web3.py, Polars, SQLite, xAI Responses API.
 
 ### Farmgun
 
 A crypto launch application with authenticated agent APIs, paid image generation and recovery of interrupted workflows.
 
-Tools used: TypeScript, Node.js, Grok image generation, HTTP 402, USDG.
+Tools: TypeScript, Node.js, Grok image generation, HTTP 402, USDG.
 
 ## Experiments
 

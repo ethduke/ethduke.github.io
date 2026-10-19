@@ -90,9 +90,20 @@ export async function pinBundle(cid, files, token, fetcher = fetch, delay = wait
   if (!Number.isFinite(result.PinSize) || result.PinSize <= 0) fail('INVALID_PROVIDER_RESPONSE');
   return 'uploaded';
 }
-export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait) {
+export function gatewayOrigins(preferred) {
+  const origins = ['https://dweb.link', 'https://ipfs.io'];
+  if (preferred) {
+    try {
+      const url = new URL(preferred);
+      if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || url.pathname !== '/') throw Error();
+      origins.unshift(url.origin);
+    } catch { fail('INVALID_GATEWAY_ORIGIN'); }
+  }
+  return [...new Set(origins)];
+}
+export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait, preferred) {
   contentCid(cid);
-  for (const host of ['https://dweb.link', 'https://ipfs.io']) {
+  for (const host of gatewayOrigins(preferred)) {
     let verified = true;
     for (const name of ['index.html', 'styles.css']) {
       const entry = manifest.files.find(file => file.name === name);
@@ -142,15 +153,16 @@ export async function updatePointer({ cid, key, name, context, fetcher = fetch, 
   }
   fail('IPNS_PUBLISH_UNVERIFIED');
 }
-export async function release({ cid, files, manifest, encodedKey, config, context, token, fetcher = fetch, delay = wait, progress = async () => {} }) {
+export async function release({ cid, files, manifest, encodedKey, config, context, token, preferredGateway, fetcher = fetch, delay = wait, progress = async () => {} }) {
   if (manifest.repository !== config.repository || manifest.sourceCommit !== context.sha) fail('RELEASE_PROVENANCE_MISMATCH');
   if (!token) fail('PINATA_TOKEN_MISSING');
+  gatewayOrigins(preferredGateway);
   const key = signingKey(encodedKey, config.ipnsName);
   await assertFreshHead(context, fetcher, delay);
   await progress({ state: 'pinning' });
   const pin = await pinBundle(cid, files, token, fetcher, delay);
   await progress({ state: 'pinned', pin });
-  const gateway = await verifyGateway(cid, manifest, fetcher, delay);
+  const gateway = await verifyGateway(cid, manifest, fetcher, delay, preferredGateway);
   await progress({ state: 'verified', gateway });
   const result = await updatePointer({ cid, key, name: config.ipnsName, context, fetcher, delay, progress });
   await progress({ state: 'published', ...result });
@@ -202,7 +214,7 @@ async function main() {
     const cid = contentCid(added.stdout.trim()).toString();
     result = { ...result, cid, ipnsName: config.ipnsName, workflowRun: process.env.GITHUB_RUN_ID };
     await progress({ state: 'prepared' });
-    await release({ cid, files, manifest, encodedKey: process.env.IPNS_PRIVATE_KEY, config, context, token: process.env.PINATA_JWT, progress });
+    await release({ cid, files, manifest, encodedKey: process.env.IPNS_PRIVATE_KEY, config, context, token: process.env.PINATA_JWT, preferredGateway: process.env.IPFS_GATEWAY_ORIGIN, progress });
     if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## Portfolio published\n\n- Commit: \`${context.sha}\`\n- IPFS: \`${cid}\`\n- Shared address: \`ipns://${config.ipnsName}\`\n- Previous CID: \`${result.previousCid ?? 'initial publication'}\`\n- Valid until: ${result.validUntil}\n\nENS and Gwei must each use the shared IPNS address once.\n`);
     console.log('IPFS_PINNED_AND_IPNS_VERIFIED');
   } catch (error) {

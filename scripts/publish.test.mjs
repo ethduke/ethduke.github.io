@@ -5,7 +5,7 @@ import { generateKeyPair, privateKeyToProtobuf } from '@libp2p/crypto/keys';
 import { base36 } from 'multiformats/bases/base36';
 import { createIPNSRecord, marshalIPNSRecord, unmarshalIPNSRecord } from 'ipns';
 import { validate } from 'ipns/validator';
-import { release, assertFreshHead, signingKey, updatePointer, verifyPages, uploadFailure, PublishError } from './publish-ipfs.mjs';
+import { release, assertFreshHead, signingKey, updatePointer, verifyPages, verifyGateway, gatewayOrigins, uploadFailure, PublishError } from './publish-ipfs.mjs';
 import { keepSchedule } from './keep-schedule.mjs';
 
 const cid = 'bafybeicn4yud4kazwvwkhsdp4eeeown5hjqn4bznpngc6imbhzuqiuwuka';
@@ -154,4 +154,11 @@ test('Pinata rejections distinguish plan, scope and storage failures without exp
     ['Storage limit exceeded. DO_NOT_LOG_THIS_SENTINEL', 'PINATA_STORAGE_LIMIT'],
     ['Forbidden. DO_NOT_LOG_THIS_SENTINEL', 'PINATA_UPLOAD_FAILED'],
   ]) await assert.rejects(uploadFailure(new Response(body, { status: 403 })), error => error.code === code && !String(error).includes('SENTINEL'));
+});
+test('preferred public gateway verifies exact bytes when shared gateways are throttled', async () => {
+  const origin = 'https://portfolio.mypinata.cloud';
+  const fetcher = async url => url.startsWith(origin) ? new Response(files.get(url.split('/').at(-1))) : new Response(null, { status: 429 });
+  assert.equal(await verifyGateway(cid, manifest, fetcher, noDelay, origin), origin);
+  const credentialUrl = new URL(origin); credentialUrl.username = 'test'; credentialUrl.password = 'test';
+  for (const invalid of ['http://portfolio.mypinata.cloud', credentialUrl.href, 'https://portfolio.mypinata.cloud/private', 'https://portfolio.mypinata.cloud?token=test']) assert.throws(() => gatewayOrigins(invalid), { code: 'INVALID_GATEWAY_ORIGIN' });
 });

@@ -37,7 +37,7 @@ async function harness(options = {}) {
     }
     if (url.includes('/routing/v1/ipns/')) {
       if (method === 'PUT') { await validate(key.publicKey, request.body); if (!options.loseReadback) record = request.body; return new Response(null, { status: 200 }); }
-      return record ? new Response(record) : new Response(null, { status: 404 });
+      return record ? new Response(record, { headers: { 'Content-Type': 'application/vnd.ipfs.ipns-record' } }) : options.emptyRecord200 ? new Response('delegate error: routing: not found\n') : new Response(null, { status: 404 });
     }
     throw Error('Unexpected mocked endpoint');
   };
@@ -113,7 +113,7 @@ test('version sequence remains monotonic even if the clock moves backwards', asy
   const fetcher = async (url, options = {}) => {
     if (url.includes('api.github.com')) return Response.json({ object: { sha: context.sha } });
     if (options.method === 'PUT') { latest = options.body; return new Response(); }
-    return new Response(latest);
+    return new Response(latest, { headers: { 'Content-Type': 'application/vnd.ipfs.ipns-record' } });
   };
   const result = await updatePointer({ cid, key: h.key, name: h.name, context, fetcher, now: () => 1, delay: noDelay });
   assert.equal(result.sequence, '8000001'); assert.equal(result.previousCid, older);
@@ -146,6 +146,15 @@ test('an IPNS record signed by another identity cannot affect sequence or destin
   const h = await harness({ previous: record });
   await assert.rejects(release(h.args), { code: 'INVALID_IPNS_RECORD' });
   assert.equal(h.calls.filter(call => call.method === 'PUT').length, 0);
+});
+test('initial routing response with another media type means no record, while malformed typed records block publication', async () => {
+  const h = await harness({ emptyRecord200: true });
+  await release(h.args);
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, 1);
+  assert.equal(h.stages.at(-1).state, 'published');
+  const malformed = await harness({ previous: new Uint8Array([0xff]) });
+  await assert.rejects(release(malformed.args), { code: 'INVALID_IPNS_RECORD' });
+  assert.equal(malformed.calls.filter(call => call.method === 'PUT').length, 0);
 });
 test('Pinata rejections distinguish plan, scope and storage failures without exposing response bodies', async () => {
   for (const [body, code] of [

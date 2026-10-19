@@ -123,6 +123,11 @@ async function currentRecord(name, key, fetcher, delay) {
   const response = await request(fetcher, delegated + name, { headers: { Accept: 'application/vnd.ipfs.ipns-record' } }, 2, delay);
   if (response.status === 404) return null;
   if (!response.ok) fail('IPNS_READ_FAILED', response.status);
+  // Routing API §6.1.2: a 200 response with another media type means no record.
+  if (response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/vnd.ipfs.ipns-record') {
+    await response.body?.cancel();
+    return null;
+  }
   try {
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (bytes.length > 10_240) throw Error();

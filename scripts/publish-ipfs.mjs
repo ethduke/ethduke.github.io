@@ -109,7 +109,11 @@ export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait
       const entry = manifest.files.find(file => file.name === name);
       if (!entry || !/^[0-9a-f]{64}$/.test(entry.sha256)) fail('INVALID_RELEASE_MANIFEST');
       try {
-        const response = await request(fetcher, `${host}/ipfs/${cid}/${name}`, { redirect: 'follow' }, 1, delay);
+        let response = await request(fetcher, `${host}/ipfs/${cid}/${name}`, { redirect: 'follow' }, 1, delay);
+        if (!response.ok && name === 'index.html') {
+          await response.body?.cancel();
+          response = await request(fetcher, `${host}/ipfs/${cid}/`, { redirect: 'follow' }, 1, delay);
+        }
         if (!response.ok) { verified = false; break; }
         const bytes = Buffer.from(await response.arrayBuffer());
         if (bytes.length !== entry.bytes || createHash('sha256').update(bytes).digest('hex') !== entry.sha256) { verified = false; break; }

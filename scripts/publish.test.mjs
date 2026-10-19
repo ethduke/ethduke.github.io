@@ -171,3 +171,14 @@ test('preferred public gateway verifies exact bytes when shared gateways are thr
   const credentialUrl = new URL(origin); credentialUrl.username = 'test'; credentialUrl.password = 'test';
   for (const invalid of ['http://portfolio.mypinata.cloud', credentialUrl.href, 'https://portfolio.mypinata.cloud/private', 'https://portfolio.mypinata.cloud?token=test']) assert.throws(() => gatewayOrigins(invalid), { code: 'INVALID_GATEWAY_ORIGIN' });
 });
+test('gateway directory index fallback must still match the reviewed HTML exactly', async () => {
+  const origin = 'https://portfolio.mypinata.cloud';
+  for (const corrupted of [false, true]) {
+    const fetcher = async url => {
+      if (!url.startsWith(origin) || url.endsWith('/index.html')) return new Response(null, { status: 403 });
+      return new Response(url.endsWith('/') ? corrupted ? 'wrong homepage' : files.get('index.html') : files.get('styles.css'));
+    };
+    if (corrupted) await assert.rejects(verifyGateway(cid, manifest, fetcher, noDelay, origin), { code: 'PUBLIC_GATEWAY_NOT_VERIFIED' });
+    else assert.equal(await verifyGateway(cid, manifest, fetcher, noDelay, origin), origin);
+  }
+});

@@ -1,0 +1,148 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { generateKeyPair, privateKeyToProtobuf } from '@libp2p/crypto/keys';
+import { base36 } from 'multiformats/bases/base36';
+import { createIPNSRecord, marshalIPNSRecord, unmarshalIPNSRecord } from 'ipns';
+import { validate } from 'ipns/validator';
+import { release, assertFreshHead, signingKey, updatePointer, verifyPages, PublishError } from './publish-ipfs.mjs';
+import { keepSchedule } from './keep-schedule.mjs';
+
+const cid = 'bafybeicn4yud4kazwvwkhsdp4eeeown5hjqn4bznpngc6imbhzuqiuwuka';
+const older = 'bafybeig62o2phfqttuygnwqsjhp2nw2teyjwk7pf53tdtv5bx2r35mmuc4';
+const context = { repository: 'ethduke/ethduke.github.io', ref: 'refs/heads/main', event: 'push', sha: 'a'.repeat(40), token: 'test' };
+const files = new Map([['index.html', Buffer.from('<p>Reviewed public page</p>')], ['styles.css', Buffer.from('body{background:white}')]]);
+const manifest = { repository: context.repository, sourceCommit: context.sha, files: [...files].map(([name, bytes]) => ({ name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') })) };
+const noDelay = async () => {};
+async function harness(options = {}) {
+  const key = await generateKeyPair('Ed25519');
+  const name = key.publicKey.toCID().toString(base36);
+  const config = { repository: context.repository, ipnsName: name };
+  let pinned = options.pinned ?? false, record = options.previous ?? null, headReads = 0;
+  const calls = [], stages = [];
+  const fetcher = async (url, request = {}) => {
+    const method = request.method || 'GET'; calls.push({ url, method });
+    if (url.includes('api.github.com')) { headReads++; return Response.json({ object: { sha: options.stale || (options.staleLate && headReads > 1) ? 'b'.repeat(40) : context.sha } }); }
+    if (url.includes('api.pinata.cloud/v3/files/public')) return Response.json({ data: { files: pinned ? [{ cid }] : [] } });
+    if (url.includes('uploads.pinata.cloud')) {
+      if (options.uploadStatus) return Response.json({ error: 'DO_NOT_LOG_THIS_SENTINEL' }, { status: options.uploadStatus });
+      assert.equal(request.redirect, 'error');
+      assert.equal(request.body.get('network'), 'public'); assert.equal(request.body.get('car'), 'true');
+      pinned = true; return Response.json({ data: { id: 'test-file', cid: options.wrongCid ? older : cid } });
+    }
+    if (url.includes('/ipfs/')) {
+      if (options.gatewayFailure) return new Response('unavailable', { status: 503 });
+      const name = url.split('/').at(-1); return new Response(files.get(name));
+    }
+    if (url.includes('/routing/v1/ipns/')) {
+      if (method === 'PUT') { await validate(key.publicKey, request.body); if (!options.loseReadback) record = request.body; return new Response(null, { status: 200 }); }
+      return record ? new Response(record) : new Response(null, { status: 404 });
+    }
+    throw Error('Unexpected mocked endpoint');
+  };
+  const args = { cid, car: Buffer.from('synthetic CAR fixture'), manifest, encodedKey: Buffer.from(privateKeyToProtobuf(key)).toString('base64'), config, context, token: 'test', fetcher, delay: noDelay, progress: async stage => stages.push(stage) };
+  return { key, name, calls, stages, args, current: () => record };
+}
+
+test('successful release uploads exact CAR root, verifies public bytes, signs and reads back IPNS', async () => {
+  const h = await harness(); const result = await release(h.args);
+  assert.equal(result.previousCid, null);
+  const record = unmarshalIPNSRecord(h.current());
+  assert.equal(record.value, `/ipfs/${cid}`); assert.equal(record.ttl, 300_000_000_000n);
+  assert.equal(h.stages.at(-1).state, 'published');
+  const upload = h.calls.findIndex(call => call.method === 'POST');
+  const gateway = h.calls.findIndex(call => call.url.includes('/ipfs/'));
+  const publish = h.calls.findIndex(call => call.method === 'PUT');
+  assert.ok(upload < gateway && gateway < publish);
+});
+test('scheduled refresh reuses an existing pin without uploading another copy', async () => {
+  const h = await harness({ pinned: true });
+  await release({ ...h.args, context: { ...context, event: 'schedule' } });
+  assert.equal(h.calls.filter(call => call.method === 'POST').length, 0);
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, 1);
+});
+test('wrong commit and untrusted events make no provider mutation', async () => {
+  for (const event of ['pull_request', 'pull_request_target']) {
+    const h = await harness();
+    await assert.rejects(release({ ...h.args, context: { ...context, event } }), { code: 'UNTRUSTED_RELEASE_CONTEXT' });
+    assert.equal(h.calls.length, 0);
+  }
+  const h = await harness();
+  await assert.rejects(release({ ...h.args, manifest: { ...manifest, sourceCommit: 'c'.repeat(40) } }), { code: 'RELEASE_PROVENANCE_MISMATCH' });
+  assert.equal(h.calls.length, 0);
+});
+test('stale commits cannot publish, including a newer commit arriving during pinning', async () => {
+  for (const options of [{ stale: true }, { staleLate: true }]) {
+    const h = await harness(options);
+    await assert.rejects(release(h.args), { code: 'STALE_RELEASE' });
+    assert.equal(h.calls.filter(call => call.method === 'PUT').length, 0);
+  }
+});
+test('missing upload token and wrong signing key stop before any network call', async () => {
+  const h = await harness();
+  await assert.rejects(release({ ...h.args, token: '' }), { code: 'PINATA_TOKEN_MISSING' });
+  const other = await generateKeyPair('Ed25519');
+  assert.throws(() => signingKey(Buffer.from(privateKeyToProtobuf(other)).toString('base64'), h.name), { code: 'IPNS_KEY_MISMATCH' });
+  assert.equal(h.calls.length, 0);
+});
+test('upload rejection is not retried and cannot change IPNS', async () => {
+  const h = await harness({ uploadStatus: 402 });
+  await assert.rejects(release(h.args), { code: 'PINATA_UPLOAD_FAILED', status: 402 });
+  assert.equal(h.calls.filter(call => call.method === 'POST').length, 1);
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, 0);
+});
+test('wrong upload CID or unreachable gateway leaves the pointer untouched', async () => {
+  for (const [options, code] of [[{ wrongCid: true }, 'PINATA_CID_MISMATCH'], [{ gatewayFailure: true }, 'PUBLIC_GATEWAY_NOT_VERIFIED']]) {
+    const h = await harness(options);
+    await assert.rejects(release(h.args), { code });
+    assert.equal(h.calls.filter(call => call.method === 'PUT').length, 0);
+  }
+});
+test('readback failure after PUT is reported as unverified rather than successful', async () => {
+  const h = await harness({ loseReadback: true });
+  await assert.rejects(release(h.args), { code: 'IPNS_PUBLISH_UNVERIFIED' });
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, 1);
+  assert.equal(h.stages.at(-1).state, 'publishing');
+});
+test('version sequence remains monotonic even if the clock moves backwards', async () => {
+  const h = await harness();
+  const previous = await createIPNSRecord(h.key, `/ipfs/${older}`, 8_000_000n, 3_600_000);
+  const raw = marshalIPNSRecord(previous);
+  let latest = raw;
+  const fetcher = async (url, options = {}) => {
+    if (url.includes('api.github.com')) return Response.json({ object: { sha: context.sha } });
+    if (options.method === 'PUT') { latest = options.body; return new Response(); }
+    return new Response(latest);
+  };
+  const result = await updatePointer({ cid, key: h.key, name: h.name, context, fetcher, now: () => 1, delay: noDelay });
+  assert.equal(result.sequence, '8000001'); assert.equal(result.previousCid, older);
+});
+test('raw network failures and authentication responses do not escape as diagnostics', async () => {
+  const fetcher = async () => { throw Error('DO_NOT_LOG_THIS_SENTINEL'); };
+  await assert.rejects(assertFreshHead(context, fetcher, noDelay), error => error instanceof PublishError && error.message === 'NETWORK_REQUEST_FAILED' && !String(error).includes('SENTINEL'));
+  await assert.rejects(assertFreshHead(context, async () => new Response('DO_NOT_LOG_THIS_SENTINEL', { status: 403 }), noDelay), { code: 'GITHUB_HEAD_READ_FAILED', status: 403 });
+});
+test('timer cannot advance IPNS when the Pages content is from another release', async () => {
+  await assert.rejects(verifyPages(manifest, async () => new Response('old release'), noDelay), { code: 'PAGES_RELEASE_NOT_VERIFIED' });
+  await verifyPages(manifest, async url => new Response(files.get(new URL(url).pathname.slice(1))), noDelay);
+});
+test('keepalive leaves active repositories alone and preserves the exact tree when idle', async () => {
+  for (const idleDays of [5, 45]) {
+    const calls = [], now = Date.now(), tree = 'd'.repeat(40);
+    const fetcher = async (url, options) => {
+      calls.push({ url, options });
+      if (url.endsWith('/commits/main')) return Response.json({ sha: context.sha, commit: { committer: { date: new Date(now - idleDays * 86400000).toISOString() }, tree: { sha: tree } } });
+      if (url.endsWith('/git/commits')) { const body = JSON.parse(options.body); assert.equal(body.tree, tree); assert.deepEqual(body.parents, [context.sha]); return Response.json({ sha: 'e'.repeat(40) }); }
+      assert.equal(JSON.parse(options.body).force, false); return Response.json({});
+    };
+    assert.equal(await keepSchedule({ token: 'test', event: 'schedule', ref: context.ref, fetcher, now: () => now }), idleDays < 40 ? 'not_needed' : 'empty_commit_created');
+    assert.equal(calls.length, idleDays < 40 ? 1 : 3);
+  }
+});
+test('an IPNS record signed by another identity cannot affect sequence or destination', async () => {
+  const unrelated = await generateKeyPair('Ed25519');
+  const record = marshalIPNSRecord(await createIPNSRecord(unrelated, `/ipfs/${older}`, 999999999999999999n, 3_600_000));
+  const h = await harness({ previous: record });
+  await assert.rejects(release(h.args), { code: 'INVALID_IPNS_RECORD' });
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, 0);
+});

@@ -1,0 +1,146 @@
+name: Publish portfolio
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Refresh signed IPNS records between edits; GitHub schedules are best effort.
+    - cron: '17 */12 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portfolio-${{ github.event_name == 'pull_request' && github.ref || 'release' }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate public site
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-fund
+      - run: npm run check
+      - run: npm audit --audit-level=high
+      - run: npm run build
+      - name: Upload reviewed release files
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: portfolio-release
+          path: |
+            dist/ipfs/
+            dist/release-manifest.json
+          retention-days: 30
+      - name: Configure Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'schedule' && github.event_name != 'pull_request'
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'schedule' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: dist/pages
+
+  pages:
+    name: Deploy GitHub Pages
+    if: github.repository == 'ethduke/ethduke.github.io' && github.ref == 'refs/heads/main' && github.event_name != 'schedule' && github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy reviewed Pages artifact
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+
+  ipfs:
+    name: Pin IPFS and publish IPNS
+    if: >-
+      always() && !cancelled() && github.repository == 'ethduke/ethduke.github.io' &&
+      github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
+      needs.validate.result == 'success' &&
+      (needs.pages.result == 'success' || github.event_name == 'schedule')
+    needs: [validate, pages]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: ipfs-publish
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-fund
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: portfolio-release
+          path: dist
+      - name: Check publishing credentials
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          IPNS_PRIVATE_KEY: ${{ secrets.IPNS_PRIVATE_KEY }}
+        run: |
+          node --input-type=module -e '
+            if (!process.env.PINATA_JWT || !process.env.IPNS_PRIVATE_KEY) {
+              console.error("Add PINATA_JWT and IPNS_PRIVATE_KEY to the ipfs-publish environment. No IPNS update was attempted.");
+              process.exit(1);
+            }
+          '
+      - name: Install verified Kubo binary
+        run: node scripts/install-kubo.mjs
+      - name: Pin reviewed bundle and update shared IPNS address
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          IPNS_PRIVATE_KEY: ${{ secrets.IPNS_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: npm run publish:ipfs
+      - name: Save sanitized publication record
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ipfs-publication
+          path: dist/publish-result.json
+          if-no-files-found: ignore
+          retention-days: 90
+
+  keep-schedule:
+    name: Keep IPNS refresh schedule active
+    if: github.event_name == 'schedule' && github.repository == 'ethduke/ethduke.github.io' && github.ref == 'refs/heads/main'
+    needs: ipfs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Add an empty keepalive commit only after 40 idle days
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/keep-schedule.mjs

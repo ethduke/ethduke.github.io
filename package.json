@@ -1,0 +1,16 @@
+{
+  "name": "ethduke-portfolio-publisher",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "check": "node scripts/check-public.mjs && node --test scripts/publish.test.mjs",
+    "build": "node scripts/prepare-release.mjs",
+    "publish:ipfs": "node scripts/publish-ipfs.mjs"
+  },
+  "dependencies": {
+    "@libp2p/crypto": "5.2.0",
+    "ipns": "11.0.1",
+    "multiformats": "14.0.5"
+  }
+}

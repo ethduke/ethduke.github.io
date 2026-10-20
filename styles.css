@@ -34,6 +34,13 @@ main { padding: 24px 0 30px; }
 .project-tools summary { width: fit-content; min-height: 24px; cursor: pointer; }
 .tool-list { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 0; margin: 10px 0 0; }
 .tool-list li { color: var(--ink); }
+.utilities { border-top: 1px solid var(--rule); padding-top: 23px; margin-top: 8px; padding-bottom: 15px; }
+.utilities h2 { font-size: 14px; margin-bottom: 9px; }
+.utility-list { list-style: none; margin: 0; padding: 0; }
+.utility-row { display: grid; grid-template-columns: 200px minmax(0, 1fr) auto; gap: 32px; align-items: baseline; padding: 5px 0; }
+.utility-name { font-weight: 600; white-space: nowrap; }
+.utility-description { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.utility-row a { font-size: 13px; white-space: nowrap; padding: 3px 0; }
 .experiments { border-top: 1px solid var(--rule); padding-top: 23px; margin-top: 8px; }
 .experiments h2 { font-size: 14px; margin-bottom: 9px; }
 .experiment-links { list-style: none; margin: 0; padding: 0; }
@@ -49,10 +56,12 @@ main { padding: 24px 0 30px; }
   .site-header { padding: 25px 0; }
   main { padding-top: 26px; }
   .project { grid-template-columns: 1fr; gap: 12px; }
+  .utility-row { grid-template-columns: minmax(0, 1fr) auto; gap: 18px; }
+  .utility-description { display: none; }
   .site-footer { padding-bottom: 22px; }
 }
 @media (pointer: coarse) {
-  .profile-links a, .experiment-links a, .site-footer a { min-height: 44px; display: inline-flex; align-items: center; }
+  .profile-links a, .experiment-links a, .utility-row a, .site-footer a { min-height: 44px; display: inline-flex; align-items: center; }
   .project-tools summary { min-height: 44px; padding: 10px 0; }
   .project-copy a { display: inline-flex; align-items: center; min-height: 44px; }
 }

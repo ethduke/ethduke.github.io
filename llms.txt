@@ -31,6 +31,11 @@ Some projects have public code or model links below. Others link to portfolio su
 - [Hoodra Inference Marketplace MVP — portfolio note](https://ethduke.github.io/index.md): OpenAI-compatible FastAPI inference marketplace prototype with USDG/EIP-3009 settlement, an HTTP 402 challenge/retry flow, usage accounting, seller revenue, platform fees, and buyer credits after upstream failure. Buyer credits are internal credits, not automatic on-chain refunds.
 - [RAG Retrieval Prototype — portfolio note](https://ethduke.github.io/index.md): Python retrieval prototype using PostgreSQL/pgvector, embedding retrieval, and a full-text fallback. Integrates OpenRouter embeddings and chat generation with retrieved context and prompts requesting citations and an explicit insufficient-evidence response.
 
+## Tools
+
+- [Voltz Recovery](https://github.com/ethduke/voltz-recover): Rust CLI for recovering unsettled Voltz positions using the protocol sunsetting positions CSV.
+- [PartyDAO Recovery](https://github.com/ethduke/partydao-withdraw): Python helper for checking known Party Protocol positions, claiming distributions and recovering crowdfund refunds or escrow.
+
 ## Portfolio and profiles
 
 - [Text portfolio](https://ethduke.github.io/index.md): Readable project summaries, supplementary project notes, and public links.
@@ -45,4 +50,4 @@ Some projects have public code or model links below. Others link to portfolio su
 
 University GPU programming included an iterative CUDA algorithm for global optical flow. Later work moved into mobile app and game development, then crypto private investing and tools for on-chain research, monitoring, trading and arbitrage experiments. The current focus returns to an earlier interest in AI through model fine-tuning, evaluation and ML tools.
 
-The homepage presents five selected projects, each with a closed-by-default disclosure containing five tools, followed by experiment links and an About section. Its white background and plain sans-serif text are fixed presentation choices.
+The homepage presents five selected projects, each with a closed-by-default disclosure containing five tools, followed by a compact Tools section with recovery utilities, experiment links and an About section. Its white background and plain sans-serif text are fixed presentation choices.

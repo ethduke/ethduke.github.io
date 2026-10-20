@@ -46,6 +46,11 @@ Tools: TypeScript, Node.js, Grok image generation, HTTP 402, USDG.
 
 [Farmgun data-quality dashboard](https://ethduke.github.io/farmgun-dashboard/): Incremental backfills, normalized SQL tables and reconciliation checks, with recovery tests for duplicate events, missing blocks and recorded reorg scenarios.
 
+## Tools
+
+- **Voltz Recovery** — Unsettled Voltz position recovery. [View source](https://github.com/ethduke/voltz-recover).
+- **PartyDAO Recovery** — Party Protocol claims and refunds. [View source](https://github.com/ethduke/partydao-withdraw).
+
 ## Experiments
 
 - [Gensyn RL Swarm peer analytics](https://github.com/ethduke/gensyn_rlswarm_leaderboard)

@@ -1,12 +1,12 @@
 # Research portfolio
 
-> Independent researcher and software builder working across applied AI/ML, crypto R&D, on-chain data analysis, and agent tooling.
+> Independent researcher and software builder working across applied AI/ML, on-chain data analysis, and agent tooling.
 
-Hands-on work spans data preparation and agent-assisted labelling, LoRA fine-tuning, calibrated classification, model and rule-based baseline comparisons, structured holdout evaluation, and interfaces for reviewing model predictions and evidence. Crypto research focuses on Ethereum/EVM, Solana, and DeFi, including protocol analysis, contract reverse engineering, liquidity research, and wallet-flow analysis.
+Hands-on work spans data preparation and agent-assisted labelling, LoRA fine-tuning, calibrated classification, model and rule-based baseline comparisons, structured holdout evaluation, and interfaces for reviewing model predictions and evidence. On-chain research focuses on Ethereum/EVM, Solana, and DeFi, including protocol analysis, contract reverse engineering, liquidity research, and wallet-flow analysis.
 
 Builds Python research and data pipelines, TypeScript/Node.js applications, LLM workflows, and inference API integrations. Project tools include PyTorch, Hugging Face Transformers, PEFT/LoRA, Polars, NumPy, Parquet, PostgreSQL/pgvector, FastAPI, React, and Next.js. Uses Codex, Claude Code, and Cursor for AI-assisted software development.
 
-Current interests include understanding LLM internals and working close to model experimentation, training/adaptation, evaluation, and inference engineering. Crypto is a domain strength; applied AI interests extend beyond crypto.
+Current interests include understanding LLM internals and working close to model experimentation, training/adaptation, evaluation, and inference engineering. On-chain analysis is a domain strength, alongside broader applied AI interests.
 
 Some projects have public code or model links below. Others link to portfolio summaries because a public implementation URL is not available. The site uses the handle ethduke and does not publish a full CV.
 
@@ -26,7 +26,7 @@ Some projects have public code or model links below. Others link to portfolio su
 - [Solana Bytecode Classifier](https://ethduke.github.io/#solana-bytecode-classifier): End-to-end classification pipeline combining static analysis, deterministic rules, agent-assisted annotation, a gradient-boosted-tree baseline, and Qwen3-8B LoRA. Uses temperature scaling and code-clone, newest-deployment, and launchpad-family holdouts. A read-only live shadow monitor routes model disagreements for relabelling.
   - [Program Lens](https://ethduke.github.io/program-lens/): Review workspace for this classifier: compare predictions and evidence, investigate disagreements, and export review notes. The live demo uses synthetic cases. Built with React, Next.js, and TypeScript; includes class, confidence, holdout, reference-mismatch, and tree/LoRA disagreement filters, an evidence inspector with annotation provenance, and locally exportable review proposals that preserve original labels. Demo inputs, labels, evidence, and illustrative scores are invented; no real evaluation data is published.
 - [On-chain Research Pipeline](https://ethduke.github.io/#on-chain-research-pipeline): Python pipelines that archive and decode Uniswap v2/v3/v4 events into Parquet for liquidity and wallet-flow research using Polars and NumPy. Integrates xAI Responses and X Search for structured social research with source links, contract-address checks, caching, and request limits.
-- [Farmgun](https://ethduke.github.io/#farmgun): TypeScript/Node.js crypto launch application with a web interface, authenticated agent APIs, and a local signing SDK. Integrates Grok image generation with USDG/HTTP 402 payments, spending limits, and durable recovery state for interrupted requests.
+- [Farmgun](https://ethduke.github.io/#farmgun): TypeScript/Node.js token launch application with a web interface, authenticated agent APIs, and a local signing SDK. Integrates Grok image generation with USDG/HTTP 402 payments, spending limits, and durable recovery state for interrupted requests.
   - [Farmgun data-quality dashboard](https://ethduke.github.io/farmgun-dashboard/): Supporting subproject with incremental backfills, normalized SQL tables and reconciliation checks, plus recovery tests for duplicate events, missing blocks and recorded reorg scenarios.
 - [Hoodra Inference Marketplace MVP — portfolio note](https://ethduke.github.io/index.md): OpenAI-compatible FastAPI inference marketplace prototype with USDG/EIP-3009 settlement, an HTTP 402 challenge/retry flow, usage accounting, seller revenue, platform fees, and buyer credits after upstream failure. Buyer credits are internal credits, not automatic on-chain refunds.
 - [RAG Retrieval Prototype — portfolio note](https://ethduke.github.io/index.md): Python retrieval prototype using PostgreSQL/pgvector, embedding retrieval, and a full-text fallback. Integrates OpenRouter embeddings and chat generation with retrieved context and prompts requesting citations and an explicit insufficient-evidence response.
@@ -48,6 +48,6 @@ Some projects have public code or model links below. Others link to portfolio su
 
 ## Background
 
-University GPU programming included an iterative CUDA algorithm for global optical flow. Later work moved into mobile app and game development, then crypto private investing and tools for on-chain research, monitoring, trading and arbitrage experiments. The current focus returns to an earlier interest in AI through model fine-tuning, evaluation and ML tools.
+University GPU programming included an iterative CUDA algorithm for global optical flow. Later work moved into mobile app and game development, then private investing and tools for on-chain research, monitoring, trading and arbitrage experiments. The current focus returns to an earlier interest in AI through model fine-tuning, evaluation and ML tools.
 
 The homepage presents five selected projects, each with a closed-by-default disclosure containing five tools, followed by a compact Tools section with recovery utilities, experiment links and an About section. Its white background and plain sans-serif text are fixed presentation choices.

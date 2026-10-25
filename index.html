@@ -13,7 +13,7 @@
   <title>Research portfolio · ethduke</title>
   <link rel="canonical" href="https://ethduke.github.io/">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=79d234264503">
+  <link rel="stylesheet" href="./styles.css?v=efe88ddae439">
   <link rel="alternate" type="text/markdown" href="./index.md" title="Project summaries in Markdown">
   <link rel="describedby" type="text/plain" href="./llms.txt">
   <script type="application/ld+json">
@@ -40,14 +40,14 @@
             "@id": "https://ethduke.github.io/#solana-bytecode-classifier",
             "name": "Solana Bytecode Classifier",
             "url": "https://ethduke.github.io/#solana-bytecode-classifier",
-            "description": "A pipeline for classifying deployed Solana programs, combining data preparation, model fine-tuning and holdout evaluation, with a workspace for inspecting classification errors.",
+            "description": "Qwen3-8B LoRA classification with calibrated probabilities and structured holdouts.",
             "creator": {"@id": "https://ethduke.github.io/#ethduke"},
             "hasPart": {
               "@type": "CreativeWork",
               "@id": "https://ethduke.github.io/#program-lens",
               "name": "Program Lens",
               "url": "https://ethduke.github.io/program-lens/",
-              "description": "A review workspace for the classifier. The live demo uses synthetic cases."
+              "description": "Review workspace for this classifier: compare predictions and evidence, investigate disagreements, and export review notes. The live demo uses synthetic cases."
             }
           },
           {
@@ -126,10 +126,16 @@
         <h2 id="work-title">Selected work</h2>
 
         <article class="project" id="solana-bytecode-classifier">
-          <div class="project-heading"><h3>Solana Bytecode Classifier</h3><p class="category">Model training and evaluation</p></div>
+          <div class="project-heading"><h3>Solana Bytecode Classifier</h3><p class="category">Training &amp; evaluation</p></div>
           <div class="project-copy">
-            <p>A pipeline for classifying deployed Solana programs, combining data preparation, model fine-tuning and holdout evaluation, with a workspace for inspecting classification errors.</p>
-            <p id="program-lens"><a href="https://ethduke.github.io/program-lens/">Program Lens workspace</a></p>
+            <p>Qwen3-8B LoRA classification with calibrated probabilities and structured holdouts.</p>
+            <section class="subproject" id="program-lens" aria-labelledby="program-lens-title">
+              <div class="subproject-heading">
+                <h4 id="program-lens-title"><a href="https://ethduke.github.io/program-lens/">Program Lens</a></h4>
+                <a class="subproject-demo" href="https://ethduke.github.io/program-lens/" aria-label="Live demo of Program Lens">Live demo <span aria-hidden="true">↗</span></a>
+              </div>
+              <p>Review workspace for this classifier: compare predictions and evidence, investigate disagreements, and export review notes. The live demo uses synthetic cases.</p>
+            </section>
             <details class="project-tools">
               <summary aria-label="Tools for Solana Bytecode Classifier">Tools</summary>
               <ul class="tool-list"><li>Qwen3-8B</li><li>LoRA</li><li>Claude Sonnet</li><li>React</li><li>TypeScript</li></ul>
@@ -176,10 +182,13 @@
           <div class="project-heading"><h3>Farmgun</h3><p class="category">Agent tooling</p></div>
           <div class="project-copy">
             <p>A crypto launch application with authenticated agent APIs, paid image generation and recovery of interrupted workflows.</p>
-            <div class="subproject" id="farmgun-dashboard">
-              <h4><a href="https://ethduke.github.io/farmgun-dashboard/">Data-quality dashboard</a></h4>
+            <section class="subproject" id="farmgun-dashboard" aria-labelledby="farmgun-dashboard-title">
+              <div class="subproject-heading">
+                <h4 id="farmgun-dashboard-title"><a href="https://ethduke.github.io/farmgun-dashboard/">Data-quality dashboard</a></h4>
+                <a class="subproject-demo" href="https://ethduke.github.io/farmgun-dashboard/" aria-label="Live demo of the Farmgun data-quality dashboard">Live demo <span aria-hidden="true">↗</span></a>
+              </div>
               <p>Incremental backfills, normalized SQL tables and reconciliation checks, with recovery tests for duplicate events, missing blocks and recorded reorg scenarios.</p>
-            </div>
+            </section>
             <details class="project-tools">
               <summary aria-label="Tools for Farmgun">Tools</summary>
               <ul class="tool-list"><li>TypeScript</li><li>Node.js</li><li>Grok image generation</li><li>HTTP 402</li><li>USDG</li></ul>

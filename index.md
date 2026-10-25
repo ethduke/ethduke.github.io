@@ -8,9 +8,13 @@ Website: https://ethduke.github.io/
 
 ### Solana Bytecode Classifier
 
-A pipeline for classifying deployed Solana programs, combining data preparation, model fine-tuning and holdout evaluation, with a workspace for inspecting classification errors.
+Qwen3-8B LoRA classification with calibrated probabilities and structured holdouts.
 
-[Program Lens workspace](https://ethduke.github.io/program-lens/).
+#### [Program Lens](https://ethduke.github.io/program-lens/)
+
+Review workspace for this classifier: compare predictions and evidence, investigate disagreements, and export review notes. The live demo uses synthetic cases.
+
+[Live demo](https://ethduke.github.io/program-lens/).
 
 Tools: Qwen3-8B, LoRA, Claude Sonnet, React, TypeScript.
 
@@ -42,9 +46,11 @@ A crypto launch application with authenticated agent APIs, paid image generation
 
 Tools: TypeScript, Node.js, Grok image generation, HTTP 402, USDG.
 
-#### Data-quality dashboard
+#### [Data-quality dashboard](https://ethduke.github.io/farmgun-dashboard/)
 
-[Farmgun data-quality dashboard](https://ethduke.github.io/farmgun-dashboard/): Incremental backfills, normalized SQL tables and reconciliation checks, with recovery tests for duplicate events, missing blocks and recorded reorg scenarios.
+Incremental backfills, normalized SQL tables and reconciliation checks, with recovery tests for duplicate events, missing blocks and recorded reorg scenarios.
+
+[Live demo](https://ethduke.github.io/farmgun-dashboard/).
 
 ## Tools
 

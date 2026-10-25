@@ -27,8 +27,10 @@ main { padding: 24px 0 30px; }
 .category { font-size: 12px; color: var(--muted); margin-top: 5px; }
 .project-copy p + p { margin-top: 8px; }
 .secondary { color: var(--muted); font-size: 12px; }
-.subproject { margin-top: 14px; padding-left: 14px; border-left: 2px solid var(--rule); }
-.subproject h4 { font-size: 13px; line-height: 1.5; font-weight: 600; margin: 0 0 5px; }
+.subproject { margin-top: 18px; padding-left: 16px; border-left: 2px solid var(--rule); }
+.subproject-heading { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 10px; }
+.subproject h4 { font-size: 14px; line-height: 1.5; font-weight: 600; margin: 0; }
+.subproject-demo { font-size: 13px; white-space: nowrap; }
 .subproject p { font-size: 13px; color: var(--muted); }
 .project-tools { margin-top: 12px; color: var(--muted); font-size: 13px; }
 .project-tools summary { width: fit-content; min-height: 24px; cursor: pointer; }

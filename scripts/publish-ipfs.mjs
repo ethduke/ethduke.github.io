@@ -101,25 +101,43 @@ export function gatewayOrigins(preferred) {
   }
   return [...new Set(origins)];
 }
-export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait, preferred) {
+export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait, preferred, report = async () => {}) {
   contentCid(cid);
-  for (const host of gatewayOrigins(preferred)) {
-    let verified = true;
-    for (const name of ['index.html', 'styles.css']) {
-      const entry = manifest.files.find(file => file.name === name);
-      if (!entry || !/^[0-9a-f]{64}$/.test(entry.sha256)) fail('INVALID_RELEASE_MANIFEST');
-      try {
-        let response = await request(fetcher, `${host}/ipfs/${cid}/${name}`, { redirect: 'follow' }, 1, delay);
-        if (!response.ok && name === 'index.html') {
-          await response.body?.cancel();
-          response = await request(fetcher, `${host}/ipfs/${cid}/`, { redirect: 'follow' }, 1, delay);
-        }
-        if (!response.ok) { verified = false; break; }
-        const bytes = Buffer.from(await response.arrayBuffer());
-        if (bytes.length !== entry.bytes || createHash('sha256').update(bytes).digest('hex') !== entry.sha256) { verified = false; break; }
-      } catch { verified = false; break; }
-    }
-    if (verified) return host;
+  const hosts = gatewayOrigins(preferred);
+  const entries = ['index.html', 'styles.css'].map(name => manifest.files.find(file => file.name === name));
+  if (entries.some(entry => !entry || !/^[0-9a-f]{64}$/.test(entry.sha256) || !Number.isSafeInteger(entry.bytes) || entry.bytes <= 0)) fail('INVALID_RELEASE_MANIFEST');
+  const checks = [];
+  // Read-only probes may retry while a new pin becomes available. Never retry
+  // an upload or pointer mutation here, or lower the byte-verification gate.
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const results = await Promise.all(hosts.map(async host => {
+      for (const entry of entries) {
+        const check = { gateway: host, attempt, file: entry.name, httpStatus: 0, code: 'NETWORK_REQUEST_FAILED' };
+        try {
+          let response = await request(fetcher, `${host}/ipfs/${cid}/${entry.name}`, { redirect: 'follow' }, 0, delay);
+          if ([403, 404].includes(response.status) && entry.name === 'index.html') {
+            await response.body?.cancel();
+            response = await request(fetcher, `${host}/ipfs/${cid}/`, { redirect: 'follow' }, 0, delay);
+          }
+          check.httpStatus = response.status;
+          if (!response.ok) {
+            await response.body?.cancel();
+            check.code = 'HTTP_ERROR';
+            checks.push(check);
+            return null;
+          }
+          const bytes = Buffer.from(await response.arrayBuffer());
+          check.code = bytes.length === entry.bytes && createHash('sha256').update(bytes).digest('hex') === entry.sha256 ? 'VERIFIED' : 'CONTENT_MISMATCH';
+        } catch { /* Only fixed diagnostics escape a content gateway. */ }
+        checks.push(check);
+        if (check.code !== 'VERIFIED') return null;
+      }
+      return host;
+    }));
+    await report([...checks]);
+    const verified = results.find(Boolean);
+    if (verified) return verified;
+    if (attempt < 3) await delay(attempt * 15_000);
   }
   fail('PUBLIC_GATEWAY_NOT_VERIFIED');
 }
@@ -173,7 +191,7 @@ export async function release({ cid, files, manifest, encodedKey, config, contex
   await progress({ state: 'pinning' });
   const pin = await pinBundle(cid, files, token, fetcher, delay);
   await progress({ state: 'pinned', pin });
-  const gateway = await verifyGateway(cid, manifest, fetcher, delay, preferredGateway);
+  const gateway = await verifyGateway(cid, manifest, fetcher, delay, preferredGateway, gatewayChecks => progress({ state: 'verifying', gatewayChecks }));
   await progress({ state: 'verified', gateway });
   const result = await updatePointer({ cid, key, name: config.ipnsName, context, fetcher, delay, progress });
   await progress({ state: 'published', ...result });
@@ -233,7 +251,10 @@ async function main() {
     const status = error instanceof PublishError ? error.status : 0;
     const state = result.state === 'published' ? 'published_reporting_failed' : result.state === 'publishing' ? 'publish_unverified' : 'failed_before_pointer_update';
     try { await progress({ state, code, httpStatus: status }); } catch { console.error('PUBLICATION_RECORD_WRITE_FAILED'); }
-    if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## IPFS release incomplete\n\nCode: \`${code}\`; HTTP status: ${status}.\n\n${code === 'PINATA_TOKEN_MISSING' ? 'Add PINATA_JWT to the ipfs-publish environment, then run Publish portfolio on main.' : 'Inspect the sanitized release record. Reconcile any unverified pointer update before retrying.'}\n`);
+    if (process.env.GITHUB_STEP_SUMMARY) {
+      const gatewayTable = result.gatewayChecks?.length ? '\n\n| Gateway | Attempt | File | HTTP | Result |\n|---|---:|---|---:|---|\n' + result.gatewayChecks.map(check => `| ${check.gateway} | ${check.attempt} | ${check.file} | ${check.httpStatus} | ${check.code} |`).join('\n') : '';
+      await appendFile(process.env.GITHUB_STEP_SUMMARY, `## IPFS release incomplete\n\nCode: \`${code}\`; HTTP status: ${status}.\n\n${code === 'PINATA_TOKEN_MISSING' ? 'Add PINATA_JWT to the ipfs-publish environment, then run Publish portfolio on main.' : 'Inspect the sanitized release record. Reconcile any unverified pointer update before retrying.'}${gatewayTable}\n`);
+    }
     console.error(`${code} (HTTP ${status})`);
     process.exitCode = 1;
   }

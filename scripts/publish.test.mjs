@@ -199,3 +199,39 @@ test('gateway directory index fallback must still match the reviewed HTML exactl
     else assert.equal(await verifyGateway(cid, manifest, fetcher, noDelay, origin), origin);
   }
 });
+test('gateway verification retries transient cold-pin failures with bounded backoff and no credentials', async () => {
+  const origin = 'https://portfolio.mypinata.cloud';
+  const pauses = [], reports = [];
+  let preferredReads = 0;
+  const fetcher = async (url, options) => {
+    assert.equal(options.headers, undefined);
+    if (!url.startsWith(origin)) return new Response(null, { status: 429 });
+    preferredReads++;
+    if (preferredReads === 1) return new Response(null, { status: 504 });
+    return new Response(files.get(url.split('/').at(-1)));
+  };
+  assert.equal(await verifyGateway(cid, manifest, fetcher, async ms => pauses.push(ms), origin, async checks => reports.push(checks)), origin);
+  assert.deepEqual(pauses, [15000]);
+  assert.equal(reports.length, 2);
+  assert.ok(reports[0].some(check => check.httpStatus === 504 && check.code === 'HTTP_ERROR'));
+  assert.ok(reports.at(-1).some(check => check.file === 'styles.css' && check.code === 'VERIFIED'));
+});
+test('persistent throttling is bounded and preserved as sanitized per-gateway diagnostics', async () => {
+  const reports = [], pauses = [], calls = [];
+  const fetcher = async url => { calls.push(url); return new Response('DO_NOT_LOG_THIS_SENTINEL', { status: 429 }); };
+  await assert.rejects(verifyGateway(cid, manifest, fetcher, async ms => pauses.push(ms), undefined, async checks => reports.push(checks)), { code: 'PUBLIC_GATEWAY_NOT_VERIFIED' });
+  assert.deepEqual(pauses, [15000, 30000]);
+  assert.equal(calls.length, 6);
+  assert.equal(reports.at(-1).length, 6);
+  assert.ok(reports.at(-1).every(check => check.httpStatus === 429 && check.code === 'HTTP_ERROR'));
+  assert.ok(!JSON.stringify(reports).includes('SENTINEL'));
+});
+test('HTTP 200 with incorrect bytes cannot publish and records a fixed mismatch code', async () => {
+  const h = await harness({ pinned: true });
+  const original = h.args.fetcher;
+  await assert.rejects(release({ ...h.args, fetcher: (url, options) => url.includes('/ipfs/') ? new Response('DO_NOT_LOG_THIS_SENTINEL') : original(url, options) }), { code: 'PUBLIC_GATEWAY_NOT_VERIFIED' });
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, 0);
+  const checks = h.stages.at(-1).gatewayChecks;
+  assert.ok(checks.every(check => check.httpStatus === 200 && check.code === 'CONTENT_MISMATCH'));
+  assert.ok(!JSON.stringify(checks).includes('SENTINEL'));
+});

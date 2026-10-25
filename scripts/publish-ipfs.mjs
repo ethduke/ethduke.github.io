@@ -106,6 +106,15 @@ export function gatewayAccess(preferred, token) {
   if (token && (!preferred || !new URL(preferred).hostname.endsWith('.mypinata.cloud'))) fail('INVALID_AUTHENTICATED_GATEWAY');
   return token ? { redirect: 'error', headers: { 'x-pinata-gateway-token': token } } : { redirect: 'follow' };
 }
+export async function gatewayFailure(response) {
+  let text = '';
+  try { text = (await response.text()).slice(0, 8192).toLowerCase(); } catch {}
+  if (/cloudflare|cf-error|challenge-platform|error code:\s*10\d\d/.test(text)) return 'GATEWAY_EDGE_REJECTION';
+  if (/(html|file type|mime|content.type)[\s\S]{0,160}(blocked|not allowed|disabled|unsupported|restrict)|(?:blocked|not allowed|disabled)[\s\S]{0,160}(html|file type|mime)/.test(text)) return 'GATEWAY_CONTENT_TYPE_RESTRICTED';
+  if (/bandwidth|quota|upgrade|paid plan|usage limit/.test(text)) return 'GATEWAY_PLAN_LIMIT';
+  if (/unauthorized|invalid.{0,40}(token|key)|access denied|authentication|required.{0,40}(token|key)/.test(text)) return 'GATEWAY_ACCESS_DENIED';
+  return 'HTTP_ERROR';
+}
 export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait, preferred, report = async () => {}, gatewayToken) {
   contentCid(cid);
   const hosts = gatewayOrigins(preferred);
@@ -117,7 +126,7 @@ export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait
   // an upload or pointer mutation here, or lower the byte-verification gate.
   for (let attempt = 1; attempt <= 3; attempt++) {
     const results = await Promise.all(hosts.map(async host => {
-      for (const entry of entries) {
+      const fileResults = await Promise.all(entries.map(async entry => {
         const check = { gateway: host, attempt, file: entry.name, httpStatus: 0, code: 'NETWORK_REQUEST_FAILED' };
         try {
           const access = preferred && host === new URL(preferred).origin ? preferredAccess : { redirect: 'follow' };
@@ -134,18 +143,17 @@ export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait
           }
           check.httpStatus = response.status;
           if (!response.ok) {
-            await response.body?.cancel();
-            check.code = 'HTTP_ERROR';
+            check.code = await gatewayFailure(response);
             checks.push(check);
-            return null;
+            return false;
           }
           const bytes = Buffer.from(await response.arrayBuffer());
           check.code = bytes.length === entry.bytes && createHash('sha256').update(bytes).digest('hex') === entry.sha256 ? 'VERIFIED' : 'CONTENT_MISMATCH';
         } catch { /* Only fixed diagnostics escape a content gateway. */ }
         checks.push(check);
-        if (check.code !== 'VERIFIED') return null;
-      }
-      return host;
+        return check.code === 'VERIFIED';
+      }));
+      return fileResults.every(Boolean) ? host : null;
     }));
     await report([...checks]);
     const verified = results.find(Boolean);

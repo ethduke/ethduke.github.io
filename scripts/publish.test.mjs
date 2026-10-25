@@ -5,7 +5,7 @@ import { generateKeyPair, privateKeyToProtobuf } from '@libp2p/crypto/keys';
 import { base36 } from 'multiformats/bases/base36';
 import { createIPNSRecord, marshalIPNSRecord, unmarshalIPNSRecord } from 'ipns';
 import { validate } from 'ipns/validator';
-import { release, assertFreshHead, signingKey, updatePointer, verifyPages, verifyGateway, gatewayOrigins, gatewayAccess, uploadFailure, PublishError } from './publish-ipfs.mjs';
+import { release, assertFreshHead, signingKey, updatePointer, verifyPages, verifyGateway, gatewayOrigins, gatewayAccess, gatewayFailure, uploadFailure, PublishError } from './publish-ipfs.mjs';
 import { keepSchedule } from './keep-schedule.mjs';
 
 const cid = 'bafybeicn4yud4kazwvwkhsdp4eeeown5hjqn4bznpngc6imbhzuqiuwuka';
@@ -221,8 +221,8 @@ test('persistent throttling is bounded and preserved as sanitized per-gateway di
   const fetcher = async url => { calls.push(url); return new Response('DO_NOT_LOG_THIS_SENTINEL', { status: 429 }); };
   await assert.rejects(verifyGateway(cid, manifest, fetcher, async ms => pauses.push(ms), undefined, async checks => reports.push(checks)), { code: 'PUBLIC_GATEWAY_NOT_VERIFIED' });
   assert.deepEqual(pauses, [15000, 30000]);
-  assert.equal(calls.length, 6);
-  assert.equal(reports.at(-1).length, 6);
+  assert.equal(calls.length, 12);
+  assert.equal(reports.at(-1).length, 12);
   assert.ok(reports.at(-1).every(check => check.httpStatus === 429 && check.code === 'HTTP_ERROR'));
   assert.ok(!JSON.stringify(reports).includes('SENTINEL'));
 });
@@ -273,4 +273,13 @@ test('authenticated Pinata HTML download fallback still requires exact homepage 
     if (corrupted) await assert.rejects(check, { code: 'PUBLIC_GATEWAY_NOT_VERIFIED' });
     else assert.equal(await check, origin);
   }
+});
+test('provider rejection bodies become fixed categories without leaking their text', async () => {
+  for (const [body, code] of [
+    ['HTML file type is blocked. DO_NOT_LOG_THIS_SENTINEL', 'GATEWAY_CONTENT_TYPE_RESTRICTED'],
+    ['Cloudflare challenge-platform DO_NOT_LOG_THIS_SENTINEL', 'GATEWAY_EDGE_REJECTION'],
+    ['Bandwidth quota reached. DO_NOT_LOG_THIS_SENTINEL', 'GATEWAY_PLAN_LIMIT'],
+    ['Invalid gateway token. DO_NOT_LOG_THIS_SENTINEL', 'GATEWAY_ACCESS_DENIED'],
+    ['Unknown response DO_NOT_LOG_THIS_SENTINEL', 'HTTP_ERROR'],
+  ]) assert.equal(await gatewayFailure(new Response(body, { status: 403 })), code);
 });

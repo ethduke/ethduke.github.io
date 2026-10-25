@@ -113,6 +113,7 @@ jobs:
       - name: Pin reviewed bundle and update shared IPNS address
         env:
           IPFS_GATEWAY_ORIGIN: ${{ vars.IPFS_GATEWAY_ORIGIN }}
+          IPFS_GATEWAY_TOKEN: ${{ secrets.IPFS_GATEWAY_TOKEN }}
           PINATA_JWT: ${{ secrets.PINATA_JWT }}
           IPNS_PRIVATE_KEY: ${{ secrets.IPNS_PRIVATE_KEY }}
           GITHUB_TOKEN: ${{ github.token }}

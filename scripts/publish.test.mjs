@@ -5,7 +5,7 @@ import { generateKeyPair, privateKeyToProtobuf } from '@libp2p/crypto/keys';
 import { base36 } from 'multiformats/bases/base36';
 import { createIPNSRecord, marshalIPNSRecord, unmarshalIPNSRecord } from 'ipns';
 import { validate } from 'ipns/validator';
-import { release, assertFreshHead, signingKey, updatePointer, verifyPages, verifyGateway, gatewayOrigins, uploadFailure, PublishError } from './publish-ipfs.mjs';
+import { release, assertFreshHead, signingKey, updatePointer, verifyPages, verifyGateway, gatewayOrigins, gatewayAccess, uploadFailure, PublishError } from './publish-ipfs.mjs';
 import { keepSchedule } from './keep-schedule.mjs';
 
 const cid = 'bafybeicn4yud4kazwvwkhsdp4eeeown5hjqn4bznpngc6imbhzuqiuwuka';
@@ -234,4 +234,26 @@ test('HTTP 200 with incorrect bytes cannot publish and records a fixed mismatch 
   const checks = h.stages.at(-1).gatewayChecks;
   assert.ok(checks.every(check => check.httpStatus === 200 && check.code === 'CONTENT_MISMATCH'));
   assert.ok(!JSON.stringify(checks).includes('SENTINEL'));
+});
+test('gateway token is sent only to the configured Pinata origin and authenticated redirects are rejected', async () => {
+  const origin = 'https://portfolio.mypinata.cloud';
+  const token = 'synthetic-gateway-token';
+  const reports = [], seen = [];
+  const fetcher = async (url, options) => {
+    seen.push(url);
+    if (url.startsWith(origin)) {
+      assert.equal(options.headers['x-pinata-gateway-token'], token);
+      assert.equal(options.redirect, 'error');
+      return new Response(files.get(url.split('/').at(-1)));
+    }
+    assert.equal(options.headers, undefined);
+    return new Response(null, { status: 429 });
+  };
+  assert.equal(await verifyGateway(cid, manifest, fetcher, noDelay, origin, async checks => reports.push(checks), token), origin);
+  assert.ok(seen.some(url => url.startsWith('https://ipfs.io')));
+  assert.ok(!JSON.stringify(reports).includes(token));
+  for (const invalid of [undefined, 'https://example.com', 'https://portfolio.mypinata.cloud.example.com']) assert.throws(() => gatewayAccess(invalid, token), { code: 'INVALID_AUTHENTICATED_GATEWAY' });
+  const h = await harness();
+  await assert.rejects(release({ ...h.args, preferredGateway: 'https://example.com', gatewayToken: token }), { code: 'INVALID_AUTHENTICATED_GATEWAY' });
+  assert.equal(h.calls.length, 0);
 });

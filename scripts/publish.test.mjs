@@ -257,3 +257,20 @@ test('gateway token is sent only to the configured Pinata origin and authenticat
   await assert.rejects(release({ ...h.args, preferredGateway: 'https://example.com', gatewayToken: token }), { code: 'INVALID_AUTHENTICATED_GATEWAY' });
   assert.equal(h.calls.length, 0);
 });
+test('authenticated Pinata HTML download fallback still requires exact homepage and stylesheet bytes', async () => {
+  const origin = 'https://portfolio.mypinata.cloud';
+  for (const corrupted of [false, true]) {
+    const fetcher = async (url, options) => {
+      if (!url.startsWith(origin)) return new Response(null, { status: 429 });
+      assert.equal(options.redirect, 'error');
+      assert.equal(options.headers['x-pinata-gateway-token'], 'synthetic-gateway-token');
+      const u = new URL(url);
+      if (u.pathname.endsWith('styles.css')) return new Response(files.get('styles.css'));
+      if (u.searchParams.get('download') === 'true') return new Response(corrupted ? 'wrong homepage' : files.get('index.html'));
+      return new Response(null, { status: 403 });
+    };
+    const check = verifyGateway(cid, manifest, fetcher, noDelay, origin, undefined, 'synthetic-gateway-token');
+    if (corrupted) await assert.rejects(check, { code: 'PUBLIC_GATEWAY_NOT_VERIFIED' });
+    else assert.equal(await check, origin);
+  }
+});

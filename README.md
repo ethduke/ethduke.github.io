@@ -66,6 +66,8 @@ For reliable content verification, set the repository Actions variable `IPFS_GAT
 
 Verification probes gateways concurrently and makes at most three read-only passes, with 15- and 30-second pauses for a new pin to become retrievable. Both homepage and stylesheet must match the release byte counts and hashes at the same gateway. A failed run's summary and sanitized publication record show each gateway's HTTP status or fixed mismatch/network code. Persistent 429 responses need a working dedicated gateway, not repeated uploads; persistent 504 responses need the gateway's content retrieval fixed. Keep the default account-pinned-content restriction on a Pinata gateway; no open gateway, paid upgrade or new key is required by this workflow.
 
+If Pinata refuses inline HTML with HTTP 403, verification also tries its documented `?download=true` endpoint with the same gateway header and exact byte/hash checks. This changes only how CI reads the public file; it does not relax gateway access controls or put the key in the URL.
+
 `IPNS_PRIVATE_KEY` controls only this website pointer. Never put it in Git, artifacts, action caches or logs. It can be recovered from the dedicated local Kubo keystore backup named in `publish.config.json`; preserve that keystore securely. A compromised IPNS key requires a replacement name and new ENS/Gwei record transactions. Pausing delivery means disabling the workflow or removing its publishing secret; it does not undo already-published data.
 
 ### Refreshes, verification and recovery

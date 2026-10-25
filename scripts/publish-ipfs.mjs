@@ -126,6 +126,12 @@ export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait
             await response.body?.cancel();
             response = await request(fetcher, `${host}/ipfs/${cid}/`, access, 0, delay);
           }
+          // Pinata can deny inline HTML while allowing its documented download
+          // endpoint. Verify the downloaded bytes with the same manifest hashes.
+          if (response.status === 403 && gatewayToken && host === new URL(preferred).origin && entry.name === 'index.html') {
+            await response.body?.cancel();
+            response = await request(fetcher, `${host}/ipfs/${cid}/${entry.name}?download=true`, access, 0, delay);
+          }
           check.httpStatus = response.status;
           if (!response.ok) {
             await response.body?.cancel();

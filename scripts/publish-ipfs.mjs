@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFile, writeFile, mkdir, appendFile, readdir, lstat } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, appendFile, readdir, lstat, mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
 import { createIPNSRecord, marshalIPNSRecord, unmarshalIPNSRecord } from 'ipns';
@@ -118,6 +119,96 @@ export async function gatewayFailure(response) {
   if (/unauthorized|invalid.{0,40}(token|key)|access denied|authentication|required.{0,40}(token|key)/.test(text)) return 'GATEWAY_ACCESS_DENIED';
   return 'HTTP_ERROR';
 }
+// CARv1 frames contain a header followed by length-prefixed CID/block pairs.
+// Validate every block before letting Kubo decode the downloaded directory.
+export function verifyCarBlocks(bytes) {
+  try {
+    if (!bytes.length || bytes.length > 2 * 1024 * 1024) throw Error();
+    let offset = 0, blocks = 0;
+    const length = () => {
+      let value = 0, factor = 1;
+      for (let i = 0; i < 4 && offset < bytes.length; i++) {
+        const byte = bytes[offset++];
+        value += (byte & 127) * factor;
+        if (!(byte & 128)) return value;
+        factor *= 128;
+      }
+      throw Error();
+    };
+    const header = length();
+    if (!header || header > 4096 || offset + header >= bytes.length) throw Error();
+    offset += header;
+    while (offset < bytes.length) {
+      const size = length();
+      if (!size || offset + size > bytes.length) throw Error();
+      const [cid, block] = CID.decodeFirst(bytes.subarray(offset, offset + size));
+      if (![0x55, 0x70].includes(cid.code) || cid.multihash.code !== 0x12 || !Buffer.from(cid.multihash.digest).equals(createHash('sha256').update(block).digest())) throw Error();
+      offset += size;
+      blocks++;
+    }
+    if (!blocks) throw Error();
+  } catch { fail('INVALID_GATEWAY_CAR'); }
+}
+export async function verifyCarArchive(cid, manifest, bytes) {
+  contentCid(cid);
+  verifyCarBlocks(bytes);
+  const directory = await mkdtemp(resolve(tmpdir(), 'portfolio-car-'));
+  const env = { PATH: process.env.PATH, HOME: directory, IPFS_PATH: resolve(directory, 'repo') };
+  const command = promisify(execFile);
+  const binary = process.env.IPFS_BINARY || 'ipfs';
+  try {
+    const archive = resolve(directory, 'download.car');
+    await writeFile(archive, bytes);
+    await command(binary, ['init', '--profile=server'], { env, timeout: 30_000 });
+    await command(binary, ['dag', 'import', '--offline', '--pin-roots=false', archive], { env, timeout: 30_000 });
+    // This repository has never seen the build files and has no running daemon.
+    // Offline reads can only succeed from blocks in the remote CAR response.
+    for (const name of ['index.html', 'styles.css']) {
+      const entry = manifest.files.find(file => file.name === name);
+      const { stdout } = await command(binary, ['cat', '--offline', `/ipfs/${cid}/${name}`], { env, timeout: 15_000, encoding: 'buffer', maxBuffer: 1024 * 1024 });
+      if (!entry || stdout.length !== entry.bytes || createHash('sha256').update(stdout).digest('hex') !== entry.sha256) fail('CONTENT_MISMATCH');
+    }
+  } catch (error) {
+    if (error instanceof PublishError) throw error;
+    fail('GATEWAY_CAR_NOT_VERIFIED');
+  } finally { await rm(directory, { recursive: true, force: true }); }
+}
+export async function verifyCarGateway(cid, manifest, fetcher = fetch, delay = wait, preferred, report = async () => {}) {
+  contentCid(cid);
+  const hosts = gatewayOrigins(preferred), checks = [];
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const results = await Promise.all(hosts.map(async gateway => {
+      const check = { gateway, attempt, file: 'bundle.car', httpStatus: 0, code: 'NETWORK_REQUEST_FAILED' };
+      try {
+        const response = await request(fetcher, `${gateway}/ipfs/${cid}?format=car&dag-scope=all`, { redirect: 'follow', headers: { Accept: 'application/vnd.ipld.car' } });
+        check.httpStatus = response.status;
+        if (!response.ok) check.code = await gatewayFailure(response);
+        else if (response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/vnd.ipld.car') {
+          await response.body?.cancel();
+          check.code = 'INVALID_GATEWAY_CAR';
+        } else {
+          const chunks = []; let size = 0;
+          for await (const chunk of response.body) {
+            size += chunk.length;
+            if (size > 2 * 1024 * 1024) fail('INVALID_GATEWAY_CAR');
+            chunks.push(chunk);
+          }
+          await verifyCarArchive(cid, manifest, Buffer.concat(chunks));
+          check.code = 'VERIFIED';
+        }
+      } catch (error) {
+        if (error instanceof PublishError) check.code = error.code;
+      }
+      checks.push(check);
+      return check.code === 'VERIFIED' ? gateway : null;
+    }));
+    await report([...checks]);
+    const verified = results.find(Boolean);
+    if (verified) return verified;
+    if (attempt < 3) await delay(attempt * 15_000);
+  }
+  fail('PUBLIC_GATEWAY_NOT_VERIFIED');
+}
 export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait, preferred, report = async () => {}, gatewayToken) {
   contentCid(cid);
   const hosts = gatewayOrigins(preferred);
@@ -212,17 +303,21 @@ export async function updatePointer({ cid, key, name, context, fetcher = fetch, 
   }
   fail('IPNS_PUBLISH_UNVERIFIED');
 }
-export async function release({ cid, files, manifest, encodedKey, config, context, token, preferredGateway, gatewayToken, fetcher = fetch, delay = wait, progress = async () => {} }) {
+export async function release({ cid, files, manifest, encodedKey, config, context, token, preferredGateway, gatewayToken, gatewayFormat = 'http', fetcher = fetch, delay = wait, progress = async () => {} }) {
   if (manifest.repository !== config.repository || manifest.sourceCommit !== context.sha) fail('RELEASE_PROVENANCE_MISMATCH');
   if (!token) fail('PINATA_TOKEN_MISSING');
   gatewayAccess(preferredGateway, gatewayToken);
+  if (!['http', 'car'].includes(gatewayFormat) || (gatewayFormat === 'car' && gatewayToken)) fail('INVALID_GATEWAY_FORMAT');
   const key = signingKey(encodedKey, config.ipnsName);
   await assertFreshHead(context, fetcher, delay);
   await progress({ state: 'pinning' });
   const pin = await pinBundle(cid, files, token, fetcher, delay);
   await progress({ state: 'pinned', pin });
-  const gateway = await verifyGateway(cid, manifest, fetcher, delay, preferredGateway, gatewayChecks => progress({ state: 'verifying', gatewayChecks }), gatewayToken);
-  await progress({ state: 'verified', gateway });
+  const report = gatewayChecks => progress({ state: 'verifying', gatewayChecks });
+  const gateway = gatewayFormat === 'car'
+    ? await verifyCarGateway(cid, manifest, fetcher, delay, preferredGateway, report)
+    : await verifyGateway(cid, manifest, fetcher, delay, preferredGateway, report, gatewayToken);
+  await progress({ state: 'verified', gateway, gatewayFormat });
   const result = await updatePointer({ cid, key, name: config.ipnsName, context, fetcher, delay, progress });
   await progress({ state: 'published', ...result });
   return result;
@@ -273,7 +368,7 @@ async function main() {
     const cid = contentCid(added.stdout.trim()).toString();
     result = { ...result, cid, ipnsName: config.ipnsName, workflowRun: process.env.GITHUB_RUN_ID };
     await progress({ state: 'prepared' });
-    await release({ cid, files, manifest, encodedKey: process.env.IPNS_PRIVATE_KEY, config, context, token: process.env.PINATA_JWT, preferredGateway: process.env.IPFS_GATEWAY_ORIGIN, gatewayToken: process.env.IPFS_GATEWAY_TOKEN, progress });
+    await release({ cid, files, manifest, encodedKey: process.env.IPNS_PRIVATE_KEY, config, context, token: process.env.PINATA_JWT, preferredGateway: process.env.IPFS_GATEWAY_ORIGIN, gatewayToken: process.env.IPFS_GATEWAY_TOKEN, gatewayFormat: process.env.IPFS_GATEWAY_FORMAT || 'http', progress });
     if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## Portfolio published\n\n- Commit: \`${context.sha}\`\n- IPFS: \`${cid}\`\n- Shared address: \`ipns://${config.ipnsName}\`\n- Previous CID: \`${result.previousCid ?? 'initial publication'}\`\n- Valid until: ${result.validUntil}\n\nENS and Gwei must each use the shared IPNS address once.\n`);
     console.log('IPFS_PINNED_AND_IPNS_VERIFIED');
   } catch (error) {

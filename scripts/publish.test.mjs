@@ -1,11 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { mkdtemp, writeFile, mkdir, rm } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { generateKeyPair, privateKeyToProtobuf } from '@libp2p/crypto/keys';
 import { base36 } from 'multiformats/bases/base36';
 import { createIPNSRecord, marshalIPNSRecord, unmarshalIPNSRecord } from 'ipns';
 import { validate } from 'ipns/validator';
-import { release, assertFreshHead, signingKey, updatePointer, verifyPages, verifyGateway, gatewayOrigins, gatewayAccess, gatewayFailure, uploadFailure, PublishError } from './publish-ipfs.mjs';
+import { release, assertFreshHead, signingKey, updatePointer, verifyPages, verifyGateway, verifyCarBlocks, verifyCarArchive, verifyCarGateway, gatewayOrigins, gatewayAccess, gatewayFailure, uploadFailure, PublishError } from './publish-ipfs.mjs';
 import { keepSchedule } from './keep-schedule.mjs';
 
 const cid = 'bafybeicn4yud4kazwvwkhsdp4eeeown5hjqn4bznpngc6imbhzuqiuwuka';
@@ -15,6 +20,7 @@ const files = new Map([['index.html', Buffer.from('<p>Reviewed public page</p>')
 const manifest = { repository: context.repository, sourceCommit: context.sha, files: [...files].map(([name, bytes]) => ({ name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') })) };
 const noDelay = async () => {};
 async function harness(options = {}) {
+  const releaseCid = options.cid ?? cid;
   const key = await generateKeyPair('Ed25519');
   const name = key.publicKey.toCID().toString(base36);
   const config = { repository: context.repository, ipnsName: name };
@@ -23,13 +29,13 @@ async function harness(options = {}) {
   const fetcher = async (url, request = {}) => {
     const method = request.method || 'GET'; calls.push({ url, method });
     if (url.includes('api.github.com')) { headReads++; return Response.json({ object: { sha: options.stale || (options.staleLate && headReads > 1) ? 'b'.repeat(40) : context.sha } }); }
-    if (url.includes('api.pinata.cloud/v3/files/public')) return Response.json({ data: { files: pinned ? [{ cid }] : [] } });
+    if (url.includes('api.pinata.cloud/v3/files/public')) return Response.json({ data: { files: pinned ? [{ cid: releaseCid }] : [] } });
     if (url.includes('/pinning/pinFileToIPFS')) {
       if (options.uploadStatus) return Response.json({ error: 'DO_NOT_LOG_THIS_SENTINEL' }, { status: options.uploadStatus });
       assert.equal(request.redirect, 'error');
       assert.equal(JSON.parse(request.body.get('pinataOptions')).cidVersion, 1);
       assert.deepEqual(request.body.getAll('file').map(file => file.name), ['portfolio/index.html', 'portfolio/styles.css']);
-      pinned = true; return Response.json({ IpfsHash: options.wrongCid ? older : cid, PinSize: 100 });
+      pinned = true; return Response.json({ IpfsHash: options.wrongCid ? older : releaseCid, PinSize: 100 });
     }
     if (url.includes('/ipfs/')) {
       if (options.gatewayFailure) return new Response('unavailable', { status: 503 });
@@ -41,7 +47,7 @@ async function harness(options = {}) {
     }
     throw Error('Unexpected mocked endpoint');
   };
-  const args = { cid, files: [...files].map(([name, bytes]) => ({ name, bytes })), manifest, encodedKey: Buffer.from(privateKeyToProtobuf(key)).toString('base64'), config, context, token: 'test', fetcher, delay: noDelay, progress: async stage => stages.push(stage) };
+  const args = { cid: releaseCid, files: [...files].map(([name, bytes]) => ({ name, bytes })), manifest, encodedKey: Buffer.from(privateKeyToProtobuf(key)).toString('base64'), config, context, token: 'test', fetcher, delay: noDelay, progress: async stage => stages.push(stage) };
   return { key, name, calls, stages, args, current: () => record };
 }
 
@@ -304,4 +310,55 @@ test('public gateway fallbacks do not duplicate the same backend and rate limit'
   assert.deepEqual(gatewayOrigins(), ['https://ipfs.io']);
   assert.deepEqual(gatewayOrigins('https://dweb.link'), ['https://dweb.link']);
   assert.deepEqual(gatewayOrigins('https://portfolio.mypinata.cloud'), ['https://portfolio.mypinata.cloud', 'https://ipfs.io']);
+});
+
+test('remote CAR verification uses fresh offline storage and rejects corrupt, missing and mismatched content', async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), 'portfolio-car-test-'));
+  const env = { PATH: process.env.PATH, HOME: directory, IPFS_PATH: resolve(directory, 'builder') };
+  const command = promisify(execFile), binary = process.env.IPFS_BINARY || 'ipfs';
+  try {
+    await mkdir(resolve(directory, 'site'));
+    for (const [name, bytes] of files) await writeFile(resolve(directory, 'site', name), bytes);
+    await command(binary, ['init', '--profile=server'], { env, timeout: 30_000 });
+    const added = await command(binary, ['add', '--offline', '-r', '--cid-version=1', '--raw-leaves=true', '--pin=false', '-Q', resolve(directory, 'site')], { env, timeout: 30_000 });
+    const root = added.stdout.trim();
+    const { stdout: car } = await command(binary, ['dag', 'export', '--offline', root], { env, timeout: 30_000, encoding: 'buffer' });
+    verifyCarBlocks(car);
+    await verifyCarArchive(root, manifest, car);
+    const corrupt = Buffer.from(car); corrupt[corrupt.length - 1] ^= 1;
+    assert.throws(() => verifyCarBlocks(corrupt), { code: 'INVALID_GATEWAY_CAR' });
+    assert.throws(() => verifyCarBlocks(car.subarray(0, car.length - 1)), { code: 'INVALID_GATEWAY_CAR' });
+    await assert.rejects(verifyCarArchive(older, manifest, car), { code: 'GATEWAY_CAR_NOT_VERIFIED' });
+    const wrongManifest = { ...manifest, files: manifest.files.map(file => file.name === 'styles.css' ? { ...file, sha256: '0'.repeat(64) } : file) };
+    await assert.rejects(verifyCarArchive(root, wrongManifest, car), { code: 'CONTENT_MISMATCH' });
+    const { stdout: incomplete } = await command(binary, ['dag', 'export', '--offline', `${root}/index.html`], { env, timeout: 30_000, encoding: 'buffer' });
+    await assert.rejects(verifyCarArchive(root, manifest, incomplete), { code: 'GATEWAY_CAR_NOT_VERIFIED' });
+
+    const origin = 'https://ipfs.orbitor.dev', checks = [];
+    const fetcher = async (url, options) => {
+      assert.deepEqual(options.headers, { Accept: 'application/vnd.ipld.car' });
+      assert.equal(options.redirect, 'follow');
+      if (!url.startsWith(origin)) return new Response(null, { status: 429 });
+      assert.equal(url, `${origin}/ipfs/${root}?format=car&dag-scope=all`);
+      return new Response(car, { headers: { 'Content-Type': 'application/vnd.ipld.car; version=1' } });
+    };
+    assert.equal(await verifyCarGateway(root, manifest, fetcher, noDelay, origin, async rows => checks.push(...rows)), origin);
+    assert.ok(checks.some(row => row.gateway === origin && row.code === 'VERIFIED'));
+    const success = await harness({ pinned: true, cid: root });
+    const originalSuccess = success.args.fetcher;
+    await release({ ...success.args, gatewayFormat: 'car', preferredGateway: origin, fetcher: (url, options) => url.includes('/ipfs/') ? fetcher(url, options) : originalSuccess(url, options) });
+    assert.equal(unmarshalIPNSRecord(success.current()).value, `/ipfs/${root}`);
+    assert.equal(success.stages.find(stage => stage.state === 'verified').gatewayFormat, 'car');
+
+    // A valid archive for another root, an altered block, or HTML masquerading
+    // as a CAR must all stop the release before any IPNS PUT.
+    for (const [body, type] of [[car, 'application/vnd.ipld.car'], [corrupt, 'application/vnd.ipld.car'], [Buffer.from('<html>CDN page</html>'), 'text/html']]) {
+      const h = await harness({ pinned: true });
+      const original = h.args.fetcher;
+      const fetcher = (url, options) => url.includes('/ipfs/')
+        ? new Response(body, { headers: { 'Content-Type': type } }) : original(url, options);
+      await assert.rejects(release({ ...h.args, gatewayFormat: 'car', preferredGateway: origin, fetcher }), { code: 'PUBLIC_GATEWAY_NOT_VERIFIED' });
+      assert.equal(h.calls.filter(call => call.method === 'PUT').length, 0);
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });

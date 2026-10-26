@@ -33,6 +33,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-fund
+      - name: Install verified Kubo for offline CAR regression tests
+        run: node scripts/install-kubo.mjs
       - run: npm run check
       - run: npm audit --audit-level=high
       - run: npm run build
@@ -112,8 +114,8 @@ jobs:
         run: node scripts/install-kubo.mjs
       - name: Pin reviewed bundle and update shared IPNS address
         env:
-          IPFS_GATEWAY_ORIGIN: ${{ vars.IPFS_GATEWAY_ORIGIN }}
-          IPFS_GATEWAY_TOKEN: ${{ secrets.IPFS_GATEWAY_TOKEN }}
+          IPFS_GATEWAY_ORIGIN: ${{ vars.IPFS_GATEWAY_ORIGIN || 'https://ipfs.orbitor.dev' }}
+          IPFS_GATEWAY_FORMAT: car
           PINATA_JWT: ${{ secrets.PINATA_JWT }}
           IPNS_PRIVATE_KEY: ${{ secrets.IPNS_PRIVATE_KEY }}
           GITHUB_TOKEN: ${{ github.token }}

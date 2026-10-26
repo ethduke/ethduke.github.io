@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { generateKeyPair, privateKeyToProtobuf } from '@libp2p/crypto/keys';
 import { base36 } from 'multiformats/bases/base36';
+import { CID } from 'multiformats/cid';
 import { createIPNSRecord, marshalIPNSRecord, unmarshalIPNSRecord } from 'ipns';
 import { validate } from 'ipns/validator';
 import { release, assertFreshHead, signingKey, updatePointer, verifyPages, verifyGateway, gatewayOrigins, gatewayAccess, gatewayFailure, uploadFailure, PublishError } from './publish-ipfs.mjs';
@@ -282,4 +283,45 @@ test('provider rejection bodies become fixed categories without leaking their te
     ['Invalid gateway token. DO_NOT_LOG_THIS_SENTINEL', 'GATEWAY_ACCESS_DENIED'],
     ['Unknown response DO_NOT_LOG_THIS_SENTINEL', 'HTTP_ERROR'],
   ]) assert.equal(await gatewayFailure(new Response(body, { status: 403 })), code);
+});
+test('Pinata raw-block fallback uses the approved file hash and rejects incorrect bytes', async () => {
+  const origin = 'https://portfolio.mypinata.cloud';
+  for (const corrupted of [false, true]) {
+    const reports = [];
+    const fetcher = async (url, options) => {
+      if (!url.startsWith(origin)) {
+        assert.equal(options.headers, undefined);
+        return new Response(null, { status: 429 });
+      }
+      assert.equal(options.redirect, 'error');
+      assert.equal(options.headers['x-pinata-gateway-token'], 'synthetic-gateway-token');
+      const path = new URL(url).pathname;
+      if (path.endsWith('/styles.css')) return new Response(files.get('styles.css'));
+      const tail = path.split('/').at(-1);
+      if (tail?.startsWith('bafk')) {
+        const block = CID.parse(tail);
+        assert.equal(block.code, 0x55);
+        assert.equal(block.multihash.code, 0x12);
+        assert.deepEqual(Buffer.from(block.multihash.digest), createHash('sha256').update(files.get('index.html')).digest());
+        return new Response(corrupted ? 'wrong homepage' : files.get('index.html'));
+      }
+      return new Response(null, { status: 403 });
+    };
+    const check = verifyGateway(cid, manifest, fetcher, noDelay, origin, async checks => reports.push(checks), 'synthetic-gateway-token');
+    if (corrupted) await assert.rejects(check, { code: 'PUBLIC_GATEWAY_NOT_VERIFIED' });
+    else assert.equal(await check, origin);
+    assert.ok(reports.at(-1).some(entry => entry.retrieval === 'raw_block' && entry.code === (corrupted ? 'CONTENT_MISMATCH' : 'VERIFIED')));
+  }
+});
+test('raw-block fallback never guesses a single-block CID for a multichunk file', async () => {
+  const origin = 'https://portfolio.mypinata.cloud';
+  const large = { ...manifest, files: manifest.files.map(entry => entry.name === 'index.html' ? { ...entry, bytes: 262145 } : entry) };
+  const paths = [];
+  const fetcher = async url => {
+    paths.push(new URL(url).pathname);
+    if (url.endsWith('/styles.css')) return new Response(files.get('styles.css'));
+    return new Response(null, { status: 403 });
+  };
+  await assert.rejects(verifyGateway(cid, large, fetcher, noDelay, origin, undefined, 'synthetic-gateway-token'), { code: 'PUBLIC_GATEWAY_NOT_VERIFIED' });
+  assert.ok(paths.every(path => !path.split('/').at(-1).startsWith('bafk')));
 });

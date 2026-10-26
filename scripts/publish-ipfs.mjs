@@ -9,6 +9,7 @@ import { createIPNSRecord, marshalIPNSRecord, unmarshalIPNSRecord } from 'ipns';
 import { validate } from 'ipns/validator';
 import { CID } from 'multiformats/cid';
 import { base36 } from 'multiformats/bases/base36';
+import { create as createDigest } from 'multiformats/hashes/digest';
 
 const delegated = 'https://delegated-ipfs.dev/routing/v1/ipns/';
 const pinataApi = 'https://api.pinata.cloud/v3/files/public';
@@ -140,6 +141,15 @@ export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait
           if (response.status === 403 && gatewayToken && host === new URL(preferred).origin && entry.name === 'index.html') {
             await response.body?.cancel();
             response = await request(fetcher, `${host}/ipfs/${cid}/${entry.name}?download=true`, access, 0, delay);
+          }
+          // This export uses raw leaves with 262144-byte chunks. For a file
+          // within one chunk, its SHA-256 identifies the exact raw block.
+          // Pinata may serve that block even when its named HTML path is denied.
+          if (response.status === 403 && gatewayToken && host === new URL(preferred).origin && entry.bytes <= 262144) {
+            await response.body?.cancel();
+            const block = CID.createV1(0x55, createDigest(0x12, Buffer.from(entry.sha256, 'hex')));
+            response = await request(fetcher, `${host}/ipfs/${block}`, access, 0, delay);
+            check.retrieval = 'raw_block';
           }
           check.httpStatus = response.status;
           if (!response.ok) {

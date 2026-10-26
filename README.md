@@ -68,6 +68,8 @@ Verification probes gateways concurrently and makes at most three read-only pass
 
 If Pinata refuses inline HTML with HTTP 403, verification also tries its documented `?download=true` endpoint with the same gateway header and exact byte/hash checks. This changes only how CI reads the public file; it does not relax gateway access controls or put the key in the URL.
 
+If the named path is still denied, a file no larger than the export's 262144-byte chunk size can be fetched by its raw-block CID. That CID is derived from the reviewed file's SHA-256, using the export's existing CIDv1/raw-leaf encoding. The response must still match both its expected byte count and hash. This fallback does not apply to larger files, change the pinned folder CID, skip homepage verification, or advance IPNS after failed verification. The encrypted gateway key stays confined to the configured Pinata origin.
+
 `IPNS_PRIVATE_KEY` controls only this website pointer. Never put it in Git, artifacts, action caches or logs. It can be recovered from the dedicated local Kubo keystore backup named in `publish.config.json`; preserve that keystore securely. A compromised IPNS key requires a replacement name and new ENS/Gwei record transactions. Pausing delivery means disabling the workflow or removing its publishing secret; it does not undo already-published data.
 
 ### Refreshes, verification and recovery

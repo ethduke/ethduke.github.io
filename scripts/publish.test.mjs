@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { generateKeyPair, privateKeyToProtobuf } from '@libp2p/crypto/keys';
 import { base36 } from 'multiformats/bases/base36';
-import { CID } from 'multiformats/cid';
 import { createIPNSRecord, marshalIPNSRecord, unmarshalIPNSRecord } from 'ipns';
 import { validate } from 'ipns/validator';
 import { release, assertFreshHead, signingKey, updatePointer, verifyPages, verifyGateway, gatewayOrigins, gatewayAccess, gatewayFailure, uploadFailure, PublishError } from './publish-ipfs.mjs';
@@ -222,8 +221,8 @@ test('persistent throttling is bounded and preserved as sanitized per-gateway di
   const fetcher = async url => { calls.push(url); return new Response('DO_NOT_LOG_THIS_SENTINEL', { status: 429 }); };
   await assert.rejects(verifyGateway(cid, manifest, fetcher, async ms => pauses.push(ms), undefined, async checks => reports.push(checks)), { code: 'PUBLIC_GATEWAY_NOT_VERIFIED' });
   assert.deepEqual(pauses, [15000, 30000]);
-  assert.equal(calls.length, 12);
-  assert.equal(reports.at(-1).length, 12);
+  assert.equal(calls.length, 6);
+  assert.equal(reports.at(-1).length, 6);
   assert.ok(reports.at(-1).every(check => check.httpStatus === 429 && check.code === 'HTTP_ERROR'));
   assert.ok(!JSON.stringify(reports).includes('SENTINEL'));
 });
@@ -282,46 +281,27 @@ test('provider rejection bodies become fixed categories without leaking their te
     ['Bandwidth quota reached. DO_NOT_LOG_THIS_SENTINEL', 'GATEWAY_PLAN_LIMIT'],
     ['Invalid gateway token. DO_NOT_LOG_THIS_SENTINEL', 'GATEWAY_ACCESS_DENIED'],
     ['Unknown response DO_NOT_LOG_THIS_SENTINEL', 'HTTP_ERROR'],
+    ['Cannot serve this content on a gateway subdomain. Please add a custom domain. DO_NOT_LOG_THIS_SENTINEL', 'GATEWAY_CUSTOM_DOMAIN_REQUIRED'],
   ]) assert.equal(await gatewayFailure(new Response(body, { status: 403 })), code);
 });
-test('Pinata raw-block fallback uses the approved file hash and rejects incorrect bytes', async () => {
+test('custom-domain requirement fails without retrying the provider or updating IPNS', async () => {
+  const h = await harness({ pinned: true });
   const origin = 'https://portfolio.mypinata.cloud';
-  for (const corrupted of [false, true]) {
-    const reports = [];
-    const fetcher = async (url, options) => {
-      if (!url.startsWith(origin)) {
-        assert.equal(options.headers, undefined);
-        return new Response(null, { status: 429 });
-      }
-      assert.equal(options.redirect, 'error');
-      assert.equal(options.headers['x-pinata-gateway-token'], 'synthetic-gateway-token');
-      const path = new URL(url).pathname;
-      if (path.endsWith('/styles.css')) return new Response(files.get('styles.css'));
-      const tail = path.split('/').at(-1);
-      if (tail?.startsWith('bafk')) {
-        const block = CID.parse(tail);
-        assert.equal(block.code, 0x55);
-        assert.equal(block.multihash.code, 0x12);
-        assert.deepEqual(Buffer.from(block.multihash.digest), createHash('sha256').update(files.get('index.html')).digest());
-        return new Response(corrupted ? 'wrong homepage' : files.get('index.html'));
-      }
-      return new Response(null, { status: 403 });
-    };
-    const check = verifyGateway(cid, manifest, fetcher, noDelay, origin, async checks => reports.push(checks), 'synthetic-gateway-token');
-    if (corrupted) await assert.rejects(check, { code: 'PUBLIC_GATEWAY_NOT_VERIFIED' });
-    else assert.equal(await check, origin);
-    assert.ok(reports.at(-1).some(entry => entry.retrieval === 'raw_block' && entry.code === (corrupted ? 'CONTENT_MISMATCH' : 'VERIFIED')));
-  }
-});
-test('raw-block fallback never guesses a single-block CID for a multichunk file', async () => {
-  const origin = 'https://portfolio.mypinata.cloud';
-  const large = { ...manifest, files: manifest.files.map(entry => entry.name === 'index.html' ? { ...entry, bytes: 262145 } : entry) };
-  const paths = [];
-  const fetcher = async url => {
-    paths.push(new URL(url).pathname);
+  const original = h.args.fetcher, pauses = [], requests = [];
+  const fetcher = async (url, options) => {
+    if (!url.includes('/ipfs/')) return original(url, options);
+    requests.push(url);
+    if (!url.startsWith(origin)) return new Response(null, { status: 429 });
     if (url.endsWith('/styles.css')) return new Response(files.get('styles.css'));
-    return new Response(null, { status: 403 });
+    return new Response('Cannot serve this content. Please add a custom domain to this gateway.', { status: 403 });
   };
-  await assert.rejects(verifyGateway(cid, large, fetcher, noDelay, origin, undefined, 'synthetic-gateway-token'), { code: 'PUBLIC_GATEWAY_NOT_VERIFIED' });
-  assert.ok(paths.every(path => !path.split('/').at(-1).startsWith('bafk')));
+  await assert.rejects(release({ ...h.args, fetcher, delay: async ms => pauses.push(ms), preferredGateway: origin, gatewayToken: 'synthetic-gateway-token' }), { code: 'GATEWAY_CUSTOM_DOMAIN_REQUIRED', status: 403 });
+  assert.deepEqual(pauses, []);
+  assert.equal(requests.filter(url => url.startsWith(origin)).length, 2);
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, 0);
+});
+test('public gateway fallbacks do not duplicate the same backend and rate limit', () => {
+  assert.deepEqual(gatewayOrigins(), ['https://ipfs.io']);
+  assert.deepEqual(gatewayOrigins('https://dweb.link'), ['https://dweb.link']);
+  assert.deepEqual(gatewayOrigins('https://portfolio.mypinata.cloud'), ['https://portfolio.mypinata.cloud', 'https://ipfs.io']);
 });

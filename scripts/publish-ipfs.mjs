@@ -9,7 +9,6 @@ import { createIPNSRecord, marshalIPNSRecord, unmarshalIPNSRecord } from 'ipns';
 import { validate } from 'ipns/validator';
 import { CID } from 'multiformats/cid';
 import { base36 } from 'multiformats/bases/base36';
-import { create as createDigest } from 'multiformats/hashes/digest';
 
 const delegated = 'https://delegated-ipfs.dev/routing/v1/ipns/';
 const pinataApi = 'https://api.pinata.cloud/v3/files/public';
@@ -92,15 +91,17 @@ export async function pinBundle(cid, files, token, fetcher = fetch, delay = wait
   return 'uploaded';
 }
 export function gatewayOrigins(preferred) {
-  const origins = ['https://dweb.link', 'https://ipfs.io'];
+  const origins = [];
   if (preferred) {
     try {
       const url = new URL(preferred);
       if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || url.pathname !== '/') throw Error();
-      origins.unshift(url.origin);
+      origins.push(url.origin);
     } catch { fail('INVALID_GATEWAY_ORIGIN'); }
   }
-  return [...new Set(origins)];
+  // ipfs.io and dweb.link share backend capacity and rate limits.
+  if (!origins.some(origin => ['https://ipfs.io', 'https://dweb.link'].includes(origin))) origins.push('https://ipfs.io');
+  return origins;
 }
 export function gatewayAccess(preferred, token) {
   gatewayOrigins(preferred);
@@ -110,6 +111,7 @@ export function gatewayAccess(preferred, token) {
 export async function gatewayFailure(response) {
   let text = '';
   try { text = (await response.text()).slice(0, 8192).toLowerCase(); } catch {}
+  if (/content/.test(text) && /serve/.test(text) && /custom/.test(text) && /domain/.test(text)) return 'GATEWAY_CUSTOM_DOMAIN_REQUIRED';
   if (/cloudflare|cf-error|challenge-platform|error code:\s*10\d\d/.test(text)) return 'GATEWAY_EDGE_REJECTION';
   if (/(html|file type|mime|content.type)[\s\S]{0,160}(blocked|not allowed|disabled|unsupported|restrict)|(?:blocked|not allowed|disabled)[\s\S]{0,160}(html|file type|mime)/.test(text)) return 'GATEWAY_CONTENT_TYPE_RESTRICTED';
   if (/bandwidth|quota|upgrade|paid plan|usage limit/.test(text)) return 'GATEWAY_PLAN_LIMIT';
@@ -132,6 +134,11 @@ export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait
         try {
           const access = preferred && host === new URL(preferred).origin ? preferredAccess : { redirect: 'follow' };
           let response = await request(fetcher, `${host}/ipfs/${cid}/${entry.name}`, access, 0, delay);
+          if (response.status === 403 && await gatewayFailure(response.clone()) === 'GATEWAY_CUSTOM_DOMAIN_REQUIRED') {
+            await response.body?.cancel();
+            checks.push({ ...check, httpStatus: 403, code: 'GATEWAY_CUSTOM_DOMAIN_REQUIRED' });
+            return false;
+          }
           if ([403, 404].includes(response.status) && entry.name === 'index.html') {
             await response.body?.cancel();
             response = await request(fetcher, `${host}/ipfs/${cid}/`, access, 0, delay);
@@ -141,15 +148,6 @@ export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait
           if (response.status === 403 && gatewayToken && host === new URL(preferred).origin && entry.name === 'index.html') {
             await response.body?.cancel();
             response = await request(fetcher, `${host}/ipfs/${cid}/${entry.name}?download=true`, access, 0, delay);
-          }
-          // This export uses raw leaves with 262144-byte chunks. For a file
-          // within one chunk, its SHA-256 identifies the exact raw block.
-          // Pinata may serve that block even when its named HTML path is denied.
-          if (response.status === 403 && gatewayToken && host === new URL(preferred).origin && entry.bytes <= 262144) {
-            await response.body?.cancel();
-            const block = CID.createV1(0x55, createDigest(0x12, Buffer.from(entry.sha256, 'hex')));
-            response = await request(fetcher, `${host}/ipfs/${block}`, access, 0, delay);
-            check.retrieval = 'raw_block';
           }
           check.httpStatus = response.status;
           if (!response.ok) {
@@ -168,6 +166,7 @@ export async function verifyGateway(cid, manifest, fetcher = fetch, delay = wait
     await report([...checks]);
     const verified = results.find(Boolean);
     if (verified) return verified;
+    if (checks.some(check => check.attempt === attempt && check.code === 'GATEWAY_CUSTOM_DOMAIN_REQUIRED')) fail('GATEWAY_CUSTOM_DOMAIN_REQUIRED', 403);
     if (attempt < 3) await delay(attempt * 15_000);
   }
   fail('PUBLIC_GATEWAY_NOT_VERIFIED');
@@ -284,7 +283,8 @@ async function main() {
     try { await progress({ state, code, httpStatus: status }); } catch { console.error('PUBLICATION_RECORD_WRITE_FAILED'); }
     if (process.env.GITHUB_STEP_SUMMARY) {
       const gatewayTable = result.gatewayChecks?.length ? '\n\n| Gateway | Attempt | File | HTTP | Result |\n|---|---:|---|---:|---|\n' + result.gatewayChecks.map(check => `| ${check.gateway} | ${check.attempt} | ${check.file} | ${check.httpStatus} | ${check.code} |`).join('\n') : '';
-      await appendFile(process.env.GITHUB_STEP_SUMMARY, `## IPFS release incomplete\n\nCode: \`${code}\`; HTTP status: ${status}.\n\n${code === 'PINATA_TOKEN_MISSING' ? 'Add PINATA_JWT to the ipfs-publish environment, then run Publish portfolio on main.' : 'Inspect the sanitized release record. Reconcile any unverified pointer update before retrying.'}${gatewayTable}\n`);
+      const hint = code === 'GATEWAY_CUSTOM_DOMAIN_REQUIRED' ? 'Pinata refuses this web content on its gateway subdomain and requests a custom domain. Configure an HTML-capable verification gateway before retrying; uploads and IPNS records do not need replacing. No pointer update was attempted.' : code === 'PINATA_TOKEN_MISSING' ? 'Add PINATA_JWT to the ipfs-publish environment, then run Publish portfolio on main.' : 'Inspect the sanitized release record. Reconcile any unverified pointer update before retrying.';
+      await appendFile(process.env.GITHUB_STEP_SUMMARY, `## IPFS release incomplete\n\nCode: \`${code}\`; HTTP status: ${status}.\n\n${hint}${gatewayTable}\n`);
     }
     console.error(`${code} (HTTP ${status})`);
     process.exitCode = 1;

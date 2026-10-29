@@ -38,6 +38,21 @@ jobs:
       - run: npm run check
       - run: npm audit --audit-level=high
       - run: npm run build
+      - name: Read-only CAR download diagnosis
+        if: github.event_name == 'pull_request'
+        run: |
+          node --input-type=module <<'JS'
+          import { readFile } from 'node:fs/promises';
+          import { verifyCarGateway, PublishError } from './scripts/publish-ipfs.mjs';
+          const manifest = JSON.parse(await readFile('dist/release-manifest.json'));
+          try {
+            const gateway = await verifyCarGateway('bafybeifv6luec7tgpk4dj3aovhnmiwdegck7fzx5kq6sdvetq3syg2bbg4', manifest, fetch, undefined, 'https://ipfs.orbitor.dev', async checks => console.log(JSON.stringify({ checks })));
+            console.log(JSON.stringify({ code: 'PUBLIC_CAR_VERIFIED', gateway }));
+          } catch (error) {
+            console.log(JSON.stringify({ code: error instanceof PublishError ? error.code : 'READ_ONLY_PROBE_FAILED' }));
+            process.exitCode = 1;
+          }
+          JS
       - name: Upload reviewed release files
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:

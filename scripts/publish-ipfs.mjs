@@ -35,10 +35,13 @@ export function signingKey(encoded, expectedName) {
 async function request(fetcher, url, options = {}, retries = 0, delay = wait) {
   for (let attempt = 0; ; attempt++) {
     try {
-      const response = await fetcher(url, { redirect: 'error', ...options, signal: AbortSignal.timeout(30_000) });
+      const timeout = AbortSignal.timeout(30_000);
+      const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
+      const response = await fetcher(url, { redirect: 'error', ...options, signal });
       if (attempt < retries && transient.has(response.status)) { await response.body?.cancel(); await delay(1000 * (attempt + 1)); continue; }
       return response;
     } catch {
+      if (options.signal?.aborted) fail('GATEWAY_PROBE_CANCELLED');
       if (attempt < retries) { await delay(1000 * (attempt + 1)); continue; }
       fail('NETWORK_REQUEST_FAILED');
     }
@@ -109,6 +112,13 @@ export function gatewayAccess(preferred, token) {
   if (token && (!preferred || !new URL(preferred).hostname.endsWith('.mypinata.cloud'))) fail('INVALID_AUTHENTICATED_GATEWAY');
   return token ? { redirect: 'error', headers: { 'x-pinata-gateway-token': token } } : { redirect: 'follow' };
 }
+export function carGatewayOrigins(preferred) {
+  const origins = gatewayOrigins(preferred);
+  // Orbitor's global route can fail while a direct regional route still works.
+  const regional = 'https://eu.orbitor.dev';
+  if (!origins.includes(regional)) origins.splice(preferred ? 1 : 0, 0, regional);
+  return origins;
+}
 export async function gatewayFailure(response) {
   let text = '';
   try { text = (await response.text()).slice(0, 8192).toLowerCase(); } catch {}
@@ -149,7 +159,7 @@ export function verifyCarBlocks(bytes) {
     if (!blocks) throw Error();
   } catch { fail('INVALID_GATEWAY_CAR'); }
 }
-export async function verifyCarArchive(cid, manifest, bytes) {
+export async function verifyCarArchive(cid, manifest, bytes, signal) {
   contentCid(cid);
   verifyCarBlocks(bytes);
   const directory = await mkdtemp(resolve(tmpdir(), 'portfolio-car-'));
@@ -159,28 +169,30 @@ export async function verifyCarArchive(cid, manifest, bytes) {
   try {
     const archive = resolve(directory, 'download.car');
     await writeFile(archive, bytes);
-    await command(binary, ['init', '--profile=server'], { env, timeout: 30_000 });
-    await command(binary, ['dag', 'import', '--offline', '--pin-roots=false', archive], { env, timeout: 30_000 });
+    await command(binary, ['init', '--profile=server'], { env, signal, timeout: 30_000 });
+    await command(binary, ['dag', 'import', '--offline', '--pin-roots=false', archive], { env, signal, timeout: 30_000 });
     // This repository has never seen the build files and has no running daemon.
     // Offline reads can only succeed from blocks in the remote CAR response.
     for (const name of ['index.html', 'styles.css']) {
       const entry = manifest.files.find(file => file.name === name);
-      const { stdout } = await command(binary, ['cat', '--offline', `/ipfs/${cid}/${name}`], { env, timeout: 15_000, encoding: 'buffer', maxBuffer: 1024 * 1024 });
+      const { stdout } = await command(binary, ['cat', '--offline', `/ipfs/${cid}/${name}`], { env, signal, timeout: 15_000, encoding: 'buffer', maxBuffer: 1024 * 1024 });
       if (!entry || stdout.length !== entry.bytes || createHash('sha256').update(stdout).digest('hex') !== entry.sha256) fail('CONTENT_MISMATCH');
     }
   } catch (error) {
     if (error instanceof PublishError) throw error;
-    fail('GATEWAY_CAR_NOT_VERIFIED');
+    fail(signal?.aborted ? 'GATEWAY_PROBE_CANCELLED' : 'GATEWAY_CAR_NOT_VERIFIED');
   } finally { await rm(directory, { recursive: true, force: true }); }
 }
 export async function verifyCarGateway(cid, manifest, fetcher = fetch, delay = wait, preferred, report = async () => {}) {
   contentCid(cid);
-  const hosts = gatewayOrigins(preferred), checks = [];
+  const hosts = carGatewayOrigins(preferred), checks = [];
   for (let attempt = 1; attempt <= 3; attempt++) {
-    const results = await Promise.all(hosts.map(async gateway => {
-      const check = { gateway, attempt, file: 'bundle.car', httpStatus: 0, code: 'NETWORK_REQUEST_FAILED' };
+    const controller = new AbortController();
+    const probes = hosts.map(async gateway => {
+      const check = { gateway, attempt, file: 'bundle.car', httpStatus: 0, code: 'PENDING' };
+      checks.push(check);
       try {
-        const response = await request(fetcher, `${gateway}/ipfs/${cid}?format=car&dag-scope=all`, { redirect: 'follow', headers: { Accept: 'application/vnd.ipld.car' } });
+        const response = await request(fetcher, `${gateway}/ipfs/${cid}?format=car&dag-scope=all`, { redirect: 'follow', headers: { Accept: 'application/vnd.ipld.car' }, signal: controller.signal });
         check.httpStatus = response.status;
         if (!response.ok) check.code = await gatewayFailure(response);
         else if (response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/vnd.ipld.car') {
@@ -193,17 +205,22 @@ export async function verifyCarGateway(cid, manifest, fetcher = fetch, delay = w
             if (size > 2 * 1024 * 1024) fail('INVALID_GATEWAY_CAR');
             chunks.push(chunk);
           }
-          await verifyCarArchive(cid, manifest, Buffer.concat(chunks));
+          await verifyCarArchive(cid, manifest, Buffer.concat(chunks), controller.signal);
           check.code = 'VERIFIED';
         }
       } catch (error) {
-        if (error instanceof PublishError) check.code = error.code;
+        check.code = error instanceof PublishError ? error.code : 'NETWORK_REQUEST_FAILED';
       }
-      checks.push(check);
-      return check.code === 'VERIFIED' ? gateway : null;
-    }));
-    await report([...checks]);
-    const verified = results.find(Boolean);
+      if (check.code === 'VERIFIED') return gateway;
+      throw new PublishError(check.code);
+    });
+    // Accept only the first fully verified archive, then stop losing reads.
+    // A rejected or fast-but-invalid response cannot win this race.
+    let verified;
+    try { verified = await Promise.any(probes); }
+    catch { /* Every probe failed; keep the bounded read-only retry policy. */ }
+    finally { controller.abort(); }
+    await report(checks.map(check => ({ ...check, code: check.code === 'PENDING' ? 'GATEWAY_PROBE_CANCELLED' : check.code })));
     if (verified) return verified;
     if (attempt < 3) await delay(attempt * 15_000);
   }

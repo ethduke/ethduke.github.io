@@ -10,7 +10,7 @@ import { generateKeyPair, privateKeyToProtobuf } from '@libp2p/crypto/keys';
 import { base36 } from 'multiformats/bases/base36';
 import { createIPNSRecord, marshalIPNSRecord, unmarshalIPNSRecord } from 'ipns';
 import { validate } from 'ipns/validator';
-import { release, assertFreshHead, signingKey, updatePointer, verifyPages, verifyGateway, verifyCarBlocks, verifyCarArchive, verifyCarGateway, gatewayOrigins, gatewayAccess, gatewayFailure, uploadFailure, PublishError } from './publish-ipfs.mjs';
+import { release, assertFreshHead, signingKey, updatePointer, verifyPages, verifyGateway, verifyCarBlocks, verifyCarArchive, verifyCarGateway, carGatewayOrigins, gatewayOrigins, gatewayAccess, gatewayFailure, uploadFailure, PublishError } from './publish-ipfs.mjs';
 import { keepSchedule } from './keep-schedule.mjs';
 
 const cid = 'bafybeicn4yud4kazwvwkhsdp4eeeown5hjqn4bznpngc6imbhzuqiuwuka';
@@ -310,9 +310,12 @@ test('public gateway fallbacks do not duplicate the same backend and rate limit'
   assert.deepEqual(gatewayOrigins(), ['https://ipfs.io']);
   assert.deepEqual(gatewayOrigins('https://dweb.link'), ['https://dweb.link']);
   assert.deepEqual(gatewayOrigins('https://portfolio.mypinata.cloud'), ['https://portfolio.mypinata.cloud', 'https://ipfs.io']);
+  assert.deepEqual(carGatewayOrigins('https://ipfs.orbitor.dev'), ['https://ipfs.orbitor.dev', 'https://eu.orbitor.dev', 'https://ipfs.io']);
+  assert.deepEqual(carGatewayOrigins('https://eu.orbitor.dev'), ['https://eu.orbitor.dev', 'https://ipfs.io']);
+  assert.deepEqual(carGatewayOrigins('https://dweb.link'), ['https://dweb.link', 'https://eu.orbitor.dev']);
 });
 
-test('remote CAR verification uses fresh offline storage and rejects corrupt, missing and mismatched content', async () => {
+test('remote CAR verification uses fresh offline storage and rejects corrupt, missing and mismatched content', async t => {
   const directory = await mkdtemp(resolve(tmpdir(), 'portfolio-car-test-'));
   const env = { PATH: process.env.PATH, HOME: directory, IPFS_PATH: resolve(directory, 'builder') };
   const command = promisify(execFile), binary = process.env.IPFS_BINARY || 'ipfs';
@@ -325,6 +328,7 @@ test('remote CAR verification uses fresh offline storage and rejects corrupt, mi
     const { stdout: car } = await command(binary, ['dag', 'export', '--offline', root], { env, timeout: 30_000, encoding: 'buffer' });
     verifyCarBlocks(car);
     await verifyCarArchive(root, manifest, car);
+    await assert.rejects(verifyCarArchive(root, manifest, car, AbortSignal.abort()), { code: 'GATEWAY_PROBE_CANCELLED' });
     const corrupt = Buffer.from(car); corrupt[corrupt.length - 1] ^= 1;
     assert.throws(() => verifyCarBlocks(corrupt), { code: 'INVALID_GATEWAY_CAR' });
     assert.throws(() => verifyCarBlocks(car.subarray(0, car.length - 1)), { code: 'INVALID_GATEWAY_CAR' });
@@ -349,6 +353,62 @@ test('remote CAR verification uses fresh offline storage and rejects corrupt, mi
     await release({ ...success.args, gatewayFormat: 'car', preferredGateway: origin, fetcher: (url, options) => url.includes('/ipfs/') ? fetcher(url, options) : originalSuccess(url, options) });
     assert.equal(unmarshalIPNSRecord(success.current()).value, `/ipfs/${root}`);
     assert.equal(success.stages.find(stage => stage.state === 'verified').gatewayFormat, 'car');
+
+    await t.test('regional CAR succeeds while the global route hangs and ipfs.io rejects, cancelling the losing read', { timeout: 10_000 }, async () => {
+      const h = await harness({ pinned: true, cid: root });
+      const original = h.args.fetcher, pauses = [], gatewayReads = [];
+      let cancelled = false;
+      const fetcher = (url, options) => {
+        if (!url.includes('/ipfs/')) return original(url, options);
+        gatewayReads.push(new URL(url).origin);
+        assert.deepEqual(options.headers, { Accept: 'application/vnd.ipld.car' });
+        if (url.startsWith(origin)) return new Promise((resolve, reject) => {
+          options.signal.addEventListener('abort', () => { cancelled = true; reject(Error('DO_NOT_LOG_THIS_SENTINEL')); }, { once: true });
+        });
+        if (url.startsWith('https://ipfs.io')) return Promise.resolve(new Response('Cloudflare DO_NOT_LOG_THIS_SENTINEL', { status: 525 }));
+        assert.ok(url.startsWith('https://eu.orbitor.dev'));
+        return Promise.resolve(new Response(car, { headers: { 'Content-Type': 'application/vnd.ipld.car' } }));
+      };
+      await release({ ...h.args, gatewayFormat: 'car', preferredGateway: origin, fetcher, delay: async ms => pauses.push(ms) });
+      assert.equal(cancelled, true);
+      assert.deepEqual(pauses, []);
+      assert.deepEqual(gatewayReads, [origin, 'https://eu.orbitor.dev', 'https://ipfs.io']);
+      assert.equal(h.stages.find(stage => stage.state === 'verified').gateway, 'https://eu.orbitor.dev');
+      assert.equal(h.calls.filter(call => call.method === 'POST').length, 0);
+      assert.equal(h.calls.filter(call => call.method === 'PUT').length, 1);
+      const diagnostics = h.stages.find(stage => stage.state === 'verifying').gatewayChecks;
+      assert.equal(diagnostics.find(row => row.gateway === origin).code, 'GATEWAY_PROBE_CANCELLED');
+      assert.equal(diagnostics.find(row => row.gateway === 'https://ipfs.io').code, 'GATEWAY_EDGE_REJECTION');
+      assert.ok(!JSON.stringify(diagnostics).includes('SENTINEL'));
+    });
+
+    await t.test('a fast corrupt CAR cannot beat a slower fully verified response', async () => {
+      const reports = [];
+      const fetcher = async url => {
+        if (url.startsWith(origin)) return new Response(corrupt, { headers: { 'Content-Type': 'application/vnd.ipld.car' } });
+        if (url.startsWith('https://ipfs.io')) return new Response(null, { status: 522 });
+        await new Promise(resolve => setImmediate(resolve));
+        return new Response(car, { headers: { 'Content-Type': 'application/vnd.ipld.car' } });
+      };
+      assert.equal(await verifyCarGateway(root, manifest, fetcher, noDelay, origin, async rows => reports.push(rows)), 'https://eu.orbitor.dev');
+      assert.ok(reports[0].some(row => row.gateway === origin && row.code === 'INVALID_GATEWAY_CAR'));
+    });
+
+    await t.test('CAR transport failures retain bounded retries and sanitized diagnostics', async () => {
+      const pauses = [], reports = [];
+      let regionalReads = 0;
+      const fetcher = async url => {
+        if (!url.startsWith('https://eu.orbitor.dev')) return new Response('Cloudflare DO_NOT_LOG_THIS_SENTINEL', { status: 525 });
+        if (++regionalReads < 3) throw Error('DO_NOT_LOG_THIS_SENTINEL');
+        return new Response(car, { headers: { 'Content-Type': 'application/vnd.ipld.car' } });
+      };
+      assert.equal(await verifyCarGateway(root, manifest, fetcher, async ms => pauses.push(ms), origin, async rows => reports.push(rows)), 'https://eu.orbitor.dev');
+      assert.deepEqual(pauses, [15000, 30000]);
+      assert.equal(reports.length, 3);
+      assert.equal(reports.at(-1).length, 9);
+      assert.ok(reports[0].some(row => row.code === 'NETWORK_REQUEST_FAILED'));
+      assert.ok(!JSON.stringify(reports).includes('SENTINEL'));
+    });
 
     // A valid archive for another root, an altered block, or HTML masquerading
     // as a CAR must all stop the release before any IPNS PUT.

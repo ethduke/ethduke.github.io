@@ -59,8 +59,8 @@ Incremental backfills, normalized SQL tables and reconciliation checks, with rec
 
 ## Writing
 
-- [Open Kernel Challenge: what actually sped up my kernels](https://ethduke.github.io/open-kernel-challenge/)
-- [Does Axiom's Stacks library help an AI agent find proofs faster? A quick test](https://ethduke.github.io/axiom-stacks-blind-discovery/)
+- 6 Nov 2026: [Open Kernel Challenge: what actually sped up my kernels](https://ethduke.github.io/open-kernel-challenge/)
+- 5 Nov 2026: [Does Axiom's Stacks library help an AI agent find proofs faster? A quick test](https://ethduke.github.io/axiom-stacks-blind-discovery/)
 
 ## Experiments
 

@@ -81,6 +81,31 @@
     .bn-seg .k-glue { background: var(--glue); }
     .banner .legend { margin-top: 10px; }
 
+    /* Token race. */
+    .rc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+    .rc-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 8px; margin-bottom: 8px; }
+    .rc-head b { font-size: 14px; }
+    .rc-col.mine .rc-head b { color: var(--accent); }
+    .rc-head span { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .rc-stack { position: relative; display: flex; flex-direction: column; }
+    .rc-io { border: 1px solid var(--box-line); border-radius: 6px; padding: 6px 10px; font-size: 12px; line-height: 1.4; color: var(--muted); background: var(--paper); }
+    .rc-out { min-height: 54px; }
+    .rc-out b { display: block; color: var(--ink); font-size: 13.5px; font-weight: 600; min-height: 1.4em; }
+    .rc-blk { border: 1px solid transparent; border-radius: 8px; padding: 7px 10px; font-size: 12.5px; line-height: 1.4; }
+    .rc-blk b { font-weight: 600; }
+    .rc-blk span { display: block; font-size: 11.5px; opacity: .9; }
+    .rc-blk.attn { background: var(--attn-bg); border-color: var(--attn-line); color: var(--attn-text); }
+    .rc-blk.moe { background: var(--moe-bg); border-color: var(--moe-line); color: var(--moe-text); }
+    .rc-blk.bd { background: var(--glue-bg); border-color: var(--glue-line); color: var(--glue-text); }
+    .rc-blk.attn.on { border-color: var(--attn); box-shadow: inset 0 0 0 1px var(--attn); }
+    .rc-blk.moe.on { border-color: var(--moe); box-shadow: inset 0 0 0 1px var(--moe); }
+    .rc-blk.bd.on { border-color: var(--glue); box-shadow: inset 0 0 0 1px var(--glue); }
+    .rc-chip { position: absolute; right: 10px; top: 0; transform: translateY(-50%); background: var(--proj); color: #ffffff; font-size: 12px; font-weight: 600; line-height: 1.5; padding: 2px 10px; border-radius: 999px; white-space: nowrap; pointer-events: none; }
+    .rc-chip[hidden] { display: none; }
+    .rc-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+    .rc-foot b { color: var(--ink); font-size: 15px; font-variant-numeric: tabular-nums; }
+    .rc-btn { font: inherit; font-size: 12.5px; border: 1px solid var(--box-line); border-radius: 6px; background: var(--paper); color: var(--ink); padding: 5px 12px; min-height: 32px; cursor: pointer; }
+
     /* Before/after widgets. */
     .widget { border: 1px solid var(--rule); border-radius: 8px; padding: 14px; }
     .wtop { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
@@ -178,6 +203,11 @@
       .post h1 { font-size: 22px; }
       .arch { grid-template-columns: 1fr; }
       .widget { padding: 10px; }
+      .rc-grid { gap: 10px; }
+      .rc-blk { padding: 6px 8px; font-size: 12px; }
+      .rc-blk span { display: none; }
+      .rc-chip { right: 6px; font-size: 11px; padding: 1px 8px; }
+      .rc-x { display: none; }
       .post .banner { grid-template-columns: 1fr; gap: 16px; padding: 18px; }
       .post .bn-hl { font-size: 32px; }
       .post .bn-eb { letter-spacing: .05em; margin-bottom: -4px; }
@@ -346,6 +376,47 @@
         <p><strong>Router.</strong> For each token, the router picks 8 of 256 experts with a small projection, a sigmoid with a bias, and a top-8. Stock runs those as separate small steps, about 13 µs here, while the faster code tucks the router into the MoE's input projection and does the rest in one short 2.2 µs kernel.</p>
         <p><strong>MoE.</strong> This is the big one, since each token goes through 8 experts on 4-bit weights. Stock runs two big matrix multiplies with sorting, activation and norm helpers in between, while the faster version is one persistent launch: each expert starts its second step as soon as its own first step ends, busy experts get big tiles and quiet ones small tiles, and every expert's weights stream through once at about 4.2 TB/s. It still takes about half the layer, but that's 81.9 µs instead of 125.6 µs plus helpers.</p>
         <p><strong>Putting it together.</strong> The whole layer ends up as a chain of about nine kernels, and each one lets the next start setting up before it's done, so the gaps between steps mostly disappear. At this load the GPU work fell from 272 to 158 µs, and across all six loads and both layer types, the layer scores 2.30×.</p>
+        <p>And here's how that feels for one request's words, with each side moving at its real speed.</p>
+        <figure class="widget race" data-race aria-labelledby="race-caption">
+          <div class="rc-grid">
+            <div class="rc-col stock" data-per="272.4">
+              <div class="rc-head"><b>Stock SGLang</b><span>272 µs per step · <span data-n>0</span> tokens out</span></div>
+              <div class="rc-stack">
+                <div class="rc-io rc-in">Input<span class="rc-x"> · next token</span></div>
+                <div class="ar" aria-hidden="true">↓</div>
+                <div class="rc-blk attn" data-us="43.5"><b>Attention · 43.5 µs</b><span>qkv GEMM · FlashAttention 3 · o GEMM</span></div>
+                <div class="ar" aria-hidden="true">↓</div>
+                <div class="rc-blk bd" data-us="4.0"><b>Boundary</b><span>residual add + norms</span></div>
+                <div class="ar" aria-hidden="true">↓</div>
+                <div class="rc-blk moe" data-us="189.6"><b>MoE · 189.6 µs</b><span>Marlin, 2 GEMMs + helper launches</span></div>
+                <div class="ar" aria-hidden="true">↓</div>
+                <div class="rc-blk bd" data-us="4.0"><b>Boundary</b><span>residual add + norms</span></div>
+                <div class="ar" aria-hidden="true">↓</div>
+                <div class="rc-io rc-out">Output<b data-out></b></div>
+                <div class="rc-chip" hidden></div>
+              </div>
+            </div>
+            <div class="rc-col mine" data-per="158.3">
+              <div class="rc-head"><b>Mine</b><span>158 µs per step · <span data-n>0</span> tokens out</span></div>
+              <div class="rc-stack">
+                <div class="rc-io rc-in">Input<span class="rc-x"> · next token</span></div>
+                <div class="ar" aria-hidden="true">↓</div>
+                <div class="rc-blk attn" data-us="26.8"><b>Attention · 26.8 µs</b><span>12-bit GEMVs · one fused kernel</span></div>
+                <div class="ar" aria-hidden="true">↓</div>
+                <div class="rc-blk bd" data-us="4.45"><b>Boundary</b><span>residual add + norms, one kernel</span></div>
+                <div class="ar" aria-hidden="true">↓</div>
+                <div class="rc-blk moe" data-us="122.6"><b>MoE · 122.6 µs</b><span>one persistent launch</span></div>
+                <div class="ar" aria-hidden="true">↓</div>
+                <div class="rc-blk bd" data-us="4.45"><b>Boundary</b><span>residual add + norms, one kernel</span></div>
+                <div class="ar" aria-hidden="true">↓</div>
+                <div class="rc-io rc-out">Output<b data-out></b></div>
+                <div class="rc-chip" hidden></div>
+              </div>
+            </div>
+          </div>
+          <div class="rc-foot"><span><b data-clock>0</b> µs elapsed on the GPU</span><button type="button" class="rc-btn" aria-pressed="false">Pause</button></div>
+          <figcaption id="race-caption">In the same 1.4 ms, mine writes the whole sentence while stock is halfway there. In the real run each step serves 32 requests at once, and this follows one request's words through one layer.</figcaption>
+        </figure>
 
         <h2>Then measuring became the work</h2>
         <p>After the switch, the hard part was knowing whether anything really helped. Guessing from profiles often failed. One swap saved 0.5-0.8 µs on its own, then cost 0.7-1.0 µs inside the full layer. What worked was timing old and new code side by side on the same inputs.</p>
@@ -431,6 +502,62 @@
       var start = fig.querySelector('[data-show][aria-pressed="true"]');
       show(start ? start.dataset.show : buttons[0].dataset.show);
     });
+    (function () {
+      var fig = document.querySelector('[data-race]');
+      if (!fig) return;
+      var WORDS = ['fewer', 'launches', 'and', 'fewer', 'bytes', 'make', 'the', 'layer', 'fast'];
+      var US_PER_S = 272.4 / 1.7, RUN = 9, HOLD = 1.6;
+      var clock = fig.querySelector('[data-clock]'), btn = fig.querySelector('.rc-btn');
+      var cols = Array.prototype.map.call(fig.querySelectorAll('.rc-col'), function (c) {
+        return { per: +c.dataset.per, chip: c.querySelector('.rc-chip'), out: c.querySelector('[data-out]'),
+          n: c.querySelector('[data-n]'), inp: c.querySelector('.rc-in'), outBox: c.querySelector('.rc-out'),
+          stages: Array.prototype.map.call(c.querySelectorAll('[data-us]'), function (b) { return { el: b, us: +b.dataset.us }; }) };
+      });
+      function render(t, hold) {
+        var us = Math.min(t, RUN) * US_PER_S;
+        clock.textContent = Math.round(us).toLocaleString('en-US');
+        cols.forEach(function (c) {
+          var total = c.stages.reduce(function (a, s) { return a + s.us; }, 0), scale = c.per / total;
+          var steps = Math.floor(us / c.per), done = Math.min(steps, WORDS.length), rem = us - steps * c.per;
+          var si = c.stages.length - 1, p = 1, acc = 0;
+          for (var i = 0; i < c.stages.length; i++) { var d = c.stages[i].us * scale; if (rem < acc + d) { si = i; p = (rem - acc) / d; break; } acc += d; }
+          var moving = !hold && done < WORDS.length;
+          c.stages.forEach(function (s, i) { s.el.classList.toggle('on', moving && i === si); });
+          c.out.textContent = WORDS.slice(0, done).join(' ');
+          c.n.textContent = done;
+          c.chip.hidden = !moving;
+          if (!moving) return;
+          c.chip.textContent = WORDS[done];
+          var y0 = si ? c.stages[si].el.offsetTop : c.inp.offsetTop + c.inp.offsetHeight / 2;
+          var y1 = si + 1 < c.stages.length ? c.stages[si + 1].el.offsetTop : c.outBox.offsetTop + c.outBox.offsetHeight / 2;
+          c.chip.style.top = (y0 + (y1 - y0) * p) + 'px';
+        });
+      }
+      var start = null, elapsed = 0, raf = null, visible = false, paused = false;
+      function tick(ts) {
+        if (start === null) start = ts - elapsed * 1000;
+        elapsed = (ts - start) / 1000;
+        if (elapsed > RUN + HOLD) { start = ts; elapsed = 0; }
+        render(elapsed, elapsed > RUN);
+        raf = requestAnimationFrame(tick);
+      }
+      function play() { if (raf === null) { start = null; raf = requestAnimationFrame(tick); } }
+      function stop() { if (raf !== null) { cancelAnimationFrame(raf); raf = null; } }
+      function sync() { if (visible && !paused) play(); else stop(); }
+      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduce) { paused = true; elapsed = RUN; render(RUN, true); btn.textContent = 'Play'; btn.setAttribute('aria-pressed', 'true'); }
+      else render(0, false);
+      btn.addEventListener('click', function () {
+        paused = !paused;
+        if (!paused && elapsed >= RUN) elapsed = 0;
+        btn.textContent = paused ? 'Play' : 'Pause';
+        btn.setAttribute('aria-pressed', String(paused));
+        sync();
+      });
+      if ('IntersectionObserver' in window) {
+        new IntersectionObserver(function (es) { visible = es[0].isIntersecting; sync(); }, { threshold: 0.25 }).observe(fig);
+      } else { visible = true; sync(); }
+    })();
   </script>
 </body>
 </html>

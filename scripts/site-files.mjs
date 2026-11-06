@@ -132,4 +132,7 @@ export const demoAssets = new Map([
   ]
 ]);
 
-export const pagesFiles = [...portfolioFiles, '.nojekyll', ...demoAssets.keys()];
+// Static write-ups served by GitHub Pages only (not part of the IPFS bundle).
+export const articleFiles = ['axiom-stacks-blind-discovery/index.html', 'open-kernel-challenge/index.html'];
+
+export const pagesFiles = [...portfolioFiles, '.nojekyll', ...articleFiles, ...demoAssets.keys()];

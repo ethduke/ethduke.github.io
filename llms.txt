@@ -31,6 +31,11 @@ Some projects have public code or model links below. Others link to portfolio su
 - [Hoodra Inference Marketplace MVP — portfolio note](https://ethduke.github.io/index.md): OpenAI-compatible FastAPI inference marketplace prototype with USDG/EIP-3009 settlement, an HTTP 402 challenge/retry flow, usage accounting, seller revenue, platform fees, and buyer credits after upstream failure. Buyer credits are internal credits, not automatic on-chain refunds.
 - [RAG Retrieval Prototype — portfolio note](https://ethduke.github.io/index.md): Python retrieval prototype using PostgreSQL/pgvector, embedding retrieval, and a full-text fallback. Integrates OpenRouter embeddings and chat generation with retrieved context and prompts requesting citations and an explicit insufficient-evidence response.
 
+## Writing
+
+- [Open Kernel Challenge: what actually sped up my kernels](https://ethduke.github.io/open-kernel-challenge/): What made my Open Kernel Challenge decoder layer 2.3× faster than SGLang: a fused MoE launch, one-kernel attention, 12-bit projection weights and a small approximate-math change. Board scores are provisional until the organizers' reruns.
+- [Does Axiom's Stacks library help an AI agent find proofs faster? A quick test](https://ethduke.github.io/axiom-stacks-blind-discovery/): A quick, small test: 33 Lean runs with Codex (GPT-6.1 Sol) on Axiom's new Stacks library versus Mathlib alone, with no hints about where to look. On the one task that needed a theorem missing from Mathlib, the agent found it without hints and finished 3.4x faster; on two tasks Mathlib already covered, it ignored the library.
+
 ## Tools
 
 - [Voltz Recovery](https://github.com/ethduke/voltz-recover): Rust CLI for recovering unsettled Voltz positions using the protocol sunsetting positions CSV.
@@ -50,4 +55,4 @@ Some projects have public code or model links below. Others link to portfolio su
 
 University GPU programming included an iterative CUDA algorithm for global optical flow. Later work moved into mobile app and game development, then private investing and tools for on-chain research, monitoring, trading and arbitrage experiments. The current focus returns to an earlier interest in AI through model fine-tuning, evaluation and ML tools.
 
-The homepage presents five selected projects, each with a closed-by-default disclosure containing five tools, followed by a compact Tools section with recovery utilities, experiment links and an About section. Its white background and plain sans-serif text are fixed presentation choices.
+The homepage presents five selected projects, each with a closed-by-default disclosure containing five tools, followed by a compact Tools section with recovery utilities, a Writing section, experiment links and an About section. Its white background and plain sans-serif text are fixed presentation choices.

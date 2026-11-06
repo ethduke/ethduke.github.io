@@ -57,6 +57,11 @@ Incremental backfills, normalized SQL tables and reconciliation checks, with rec
 - **Voltz Recovery** — Unsettled Voltz position recovery. [View source](https://github.com/ethduke/voltz-recover).
 - **PartyDAO Recovery** — Party Protocol claims and refunds. [View source](https://github.com/ethduke/partydao-withdraw).
 
+## Writing
+
+- [Open Kernel Challenge: what actually sped up my kernels](https://ethduke.github.io/open-kernel-challenge/)
+- [Does Axiom's Stacks library help an AI agent find proofs faster? A quick test](https://ethduke.github.io/axiom-stacks-blind-discovery/)
+
 ## Experiments
 
 - [Gensyn RL Swarm peer analytics](https://github.com/ethduke/gensyn_rlswarm_leaderboard)

@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="What made my Open Kernel Challenge decoder layer 2.3× faster than SGLang: a fused MoE launch, one-kernel attention, 12-bit projection weights and a small approximate-math change.">
+  <meta property="og:title" content="Open Kernel Challenge: what actually sped up my kernels">
+  <meta property="og:description" content="What made my Open Kernel Challenge decoder layer 2.3× faster than SGLang: a fused MoE launch, one-kernel attention, 12-bit projection weights and a small approximate-math change.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://ethduke.github.io/open-kernel-challenge/">
+  <title>Open Kernel Challenge: what actually sped up my kernels · ethduke</title>
+  <link rel="canonical" href="https://ethduke.github.io/open-kernel-challenge/">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../styles.css?v=efe88ddae439">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BlogPosting", "@id": "https://ethduke.github.io/open-kernel-challenge/#article", "headline": "Open Kernel Challenge: what actually sped up my kernels", "description": "What made my Open Kernel Challenge decoder layer 2.3× faster than SGLang: a fused MoE launch, one-kernel attention, 12-bit projection weights and a small approximate-math change.", "url": "https://ethduke.github.io/open-kernel-challenge/", "datePublished": "2026-11-06", "inLanguage": "en", "author": {"@type": "Person", "@id": "https://ethduke.github.io/#ethduke", "name": "ethduke", "url": "https://ethduke.github.io/"}, "isPartOf": {"@id": "https://ethduke.github.io/#page"}, "about": ["GPU kernels", "CUDA", "Mixture of experts", "Open Kernel Challenge"]}</script>
+  <style>
+    /* Site base (same tokens as styles.css). */
+    :root {
+      color-scheme: light;
+      --paper: #ffffff;
+      --ink: #25282b;
+      --muted: #60666c;
+      --rule: #d7dadd;
+      --accent: #385b3d;
+      --accent-tint: #e6efe7;
+      --box: #f1f2f3;
+      --box-line: #bfc4c8;
+      /* One colour per part of the layer, shared by both widgets. */
+      --attn: #2f8f83; --attn-bg: #e2f3f0; --attn-line: #92cdc4; --attn-text: #1d6259;
+      --moe: #b8467a; --moe-bg: #f9e8f0; --moe-line: #e0a6c0; --moe-text: #87305a;
+      --proj: #6c5bc4; --proj-bg: #eeebfa; --proj-line: #b9afe3; --proj-text: #4a3c96;
+      --glue: #c0921c; --glue-bg: #fbf3dc; --glue-line: #e3ca7e; --glue-text: #73550b;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); }
+    h1, h2, h3, p { margin: 0; }
+    a { color: inherit; text-underline-offset: 3px; text-decoration-color: #a8adb2; overflow-wrap: anywhere; }
+    a:hover { text-decoration-color: var(--ink); }
+    a:focus-visible, summary:focus-visible, button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+    .page { width: min(100%, 1068px); margin: 0 auto; padding: 0 38px; }
+
+    /* Article layout (same as the site's other posts). */
+    .post { max-width: 720px; margin: 0 auto; padding: 0 0 40px; font-size: 15px; line-height: 1.7; }
+    .post .back { display: inline-block; font-size: 13px; color: var(--muted); padding: 26px 0 8px; }
+    .post h1 { font-size: 26px; line-height: 1.3; margin: 6px 0 10px; }
+    .post .byline { font-size: 13px; color: var(--muted); padding-bottom: 22px; border-bottom: 1px solid var(--rule); }
+    .post h2 { font-size: 18px; margin: 34px 0 10px; }
+    .post p, .post ul, .post ol { margin: 0 0 14px; }
+    .post ul, .post ol { padding-left: 22px; }
+    .post li { margin-bottom: 6px; }
+    .post .abstract ul { margin-bottom: 0; }
+    .post .abstract { margin: 22px 0 26px; padding: 16px 18px; background: #f7f8f9; border-left: 3px solid var(--rule); }
+    .post .abstract h2 { margin-top: 0; font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .post figure { margin: 22px 0 26px; }
+    .post figcaption { font-size: 13px; color: var(--muted); margin-top: 10px; }
+    .post .table-wrap { overflow-x: auto; margin: 0 0 14px; }
+    .post table { border-collapse: collapse; width: 100%; max-width: 440px; font-size: 13.5px; }
+    .post th, .post td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    .post thead th { font-weight: 600; border-bottom: 1px solid #b9bec3; }
+    .post .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    /* Before/after widgets. */
+    .widget { border: 1px solid var(--rule); border-radius: 8px; padding: 14px; }
+    .wtop { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .toggle { display: inline-flex; border: 1px solid var(--box-line); border-radius: 6px; overflow: hidden; }
+    .toggle button { font: inherit; font-size: 13px; border: 0; background: var(--paper); color: var(--muted); padding: 7px 12px; min-height: 36px; cursor: pointer; }
+    .toggle button + button { border-left: 1px solid var(--box-line); }
+    .toggle button[aria-pressed="true"] { background: var(--accent); color: #ffffff; }
+    .wcap { font-size: 13px; color: var(--muted); margin: 0 !important; }
+    .wcap b { color: var(--ink); font-weight: 600; }
+    .panel[hidden] { display: none; }
+    .panel + .panel { margin-top: 14px; }
+    .arch { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+    .total { margin-bottom: 10px; font-size: 12.5px; color: var(--muted); }
+    .total .bar { height: 8px; margin-top: 4px; }
+    .stack { display: flex; flex-direction: column; gap: 5px; }
+    .end { border: 1px solid var(--box-line); border-radius: 6px; padding: 6px 9px; background: var(--paper); font-size: 12.5px; color: var(--muted); }
+    .ar { text-align: center; color: var(--muted); font-size: 14px; line-height: 1; padding: 1px 0; }
+    .sl { border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+    .sl > .t { font-size: 13px; font-weight: 600; padding: 0 2px; }
+    .sl.g-attn { background: var(--attn-bg); }
+    .sl.g-attn > .t { color: var(--attn-text); }
+    .sl.g-moe { background: var(--moe-bg); }
+    .sl.g-moe > .t { color: var(--moe-text); }
+    .kp { background: var(--paper); border: 1px solid transparent; border-radius: 7px; padding: 6px 9px; }
+    .kp .bar { background: #eceef0; }
+    .kp.k-attn .bar i { background: var(--attn); }
+    .kp.k-moe .bar i { background: var(--moe); }
+    .kp.k-proj .bar i { background: var(--proj); }
+    .kp.k-glue .bar i { background: var(--glue); }
+    .kp.on { border-width: 2px; padding: 5px 8px; }
+    .kp.on .rowh { font-weight: 600; }
+    .kp.on.k-attn { border-color: var(--attn); }
+    .kp.on.k-moe { border-color: var(--moe); }
+    .bd { background: var(--glue-bg); border: 1px solid var(--glue-line); border-radius: 8px; padding: 6px 9px; }
+    .bd .rowh { color: var(--glue-text); font-weight: 600; }
+    .bd .mut { color: var(--glue-text); }
+    .extra { margin-top: 8px; border: 1px dashed var(--glue-line); border-radius: 8px; padding: 6px 9px; font-size: 12px; line-height: 1.45; color: var(--glue-text); }
+    .extra b { font-weight: 600; }
+    .rowh { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; line-height: 1.4; }
+    .rowh span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .mut { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+    .bar { height: 4px; border-radius: 2px; margin-top: 5px; background: #e3e5e7; }
+    .bar i { display: block; height: 100%; border-radius: 2px; background: #8a9096; }
+    .total .bar i.on { background: var(--accent); }
+    .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; border: 1px solid; }
+    .sw.k-attn { background: var(--attn-bg); border-color: var(--attn); }
+    .sw.k-moe { background: var(--moe-bg); border-color: var(--moe); }
+    .sw.k-proj { background: var(--proj-bg); border-color: var(--proj); }
+    .sw.k-glue { background: var(--glue-bg); border-color: var(--glue); }
+    .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 12px; }
+    .chips-t { font-size: 12px; color: var(--muted); margin-right: 2px; }
+    .chip { font-size: 12px; line-height: 1.5; border: 1px solid var(--rule); border-radius: 999px; padding: 2px 9px; background: var(--paper); color: var(--muted); white-space: nowrap; }
+    .chip b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .chip.k-layer { background: var(--accent-tint); border-color: var(--accent); }
+    .chip.k-layer b { color: var(--accent); }
+    .chip.k-attn { background: var(--attn-bg); border-color: var(--attn-line); }
+    .chip.k-attn b { color: var(--attn-text); }
+    .chip.k-moe { background: var(--moe-bg); border-color: var(--moe-line); }
+    .chip.k-moe b { color: var(--moe-text); }
+    .chip.k-proj { background: var(--proj-bg); border-color: var(--proj-line); }
+    .chip.k-proj b { color: var(--proj-text); }
+    .cards { display: flex; flex-direction: column; gap: 10px; }
+    .card { border: 1px solid var(--rule); border-left: 3px solid var(--box-line); border-radius: 8px; padding: 9px 11px; font-size: 13px; line-height: 1.5; }
+    .card.k-attn { border-left-color: var(--attn); }
+    .card.k-attn h3 { color: var(--attn-text); }
+    .card.k-moe { border-left-color: var(--moe); }
+    .card.k-moe h3 { color: var(--moe-text); }
+    .card h3 { font-size: 13.5px; margin-bottom: 3px; }
+    .card p { margin: 0 !important; color: var(--muted); }
+    .mathpair { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 420px; }
+    .mathpair svg { display: block; width: 100%; height: auto; }
+    .box { fill: var(--paper); stroke: var(--attn-line); stroke-width: 1; }
+    .box.mem { fill: var(--box); stroke: var(--box-line); }
+    .box.cost { fill: var(--glue-bg); stroke: var(--glue-line); }
+    .merged { fill: #c8e9e3; stroke: var(--attn); stroke-width: 1.5; }
+    .ghost { fill: none; stroke: var(--glue); stroke-width: 1; stroke-dasharray: 4 3; }
+    .sgroup { fill: var(--attn-bg); stroke: var(--attn-line); stroke-width: 1; }
+    .sub.attn, .label.attn { fill: var(--attn-text); font-weight: 600; }
+    .line { stroke: var(--muted); stroke-width: 1; fill: none; }
+    .head { font: 600 13px Arial, Helvetica, sans-serif; fill: var(--ink); }
+    .score { font: 600 15px Arial, Helvetica, sans-serif; fill: var(--ink); }
+    .score.up { fill: var(--accent); }
+    .sub { font: 400 11.5px Arial, Helvetica, sans-serif; fill: var(--muted); }
+    .label { font: 400 11px Arial, Helvetica, sans-serif; fill: var(--ink); }
+    .label.on { fill: var(--attn-text); font-weight: 600; }
+    .small { font: 400 10.5px Arial, Helvetica, sans-serif; fill: var(--muted); }
+    .center { text-anchor: middle; }
+    .endt { text-anchor: end; }
+
+    .site-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 18px; border-top: 1px solid var(--rule); padding: 18px 0 26px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 650px) {
+      .page { padding: 0 22px; }
+      .post h1 { font-size: 22px; }
+      .arch { grid-template-columns: 1fr; }
+      .widget { padding: 10px; }
+      .toggle button { padding: 7px 10px; }
+      .site-footer { padding-bottom: 22px; }
+    }
+    @media (pointer: coarse) {
+      .site-footer a, .post .back { min-height: 44px; display: inline-flex; align-items: center; }
+      .toggle button { min-height: 44px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <main class="post">
+      <a class="back" href="../">← Research portfolio</a>
+      <article>
+        <h1>Open Kernel Challenge: what actually sped up my kernels</h1>
+        <p class="byline">ethduke · <time datetime="2026-11-06">6 November 2026</time> · about an 8-minute read</p>
+
+        <section class="abstract" aria-labelledby="tldr-title">
+          <h2 id="tldr-title">TL;DR</h2>
+          <ul>
+            <li>The biggest jump came from the expert (MoE) kernel. Stock SGLang runs two big matrix multiplies plus about ten small helper launches, and with one token the helpers alone eat 34 of its 80 µs. The fast version is one persistent launch, where each expert starts its second step the moment its own first step ends and its 4-bit weights stream through once at about 4.2 TB/s. With overlapping launches around it, my layer went from 1.67× to 2.23× and finished at 2.30×, rank 115 of 1,299.</li>
+            <li>Attention got the same treatment: one kernel does the whole step, gate included, and splits the cached keys across blocks whose partial results merge through a hardware bulk-reduce, so at 32 tokens it takes 9.3 µs instead of 23.5 µs plus a chain of small steps. Later, an approximate exponential plus FP16 score sums took the attention board from 2.63× to 2.73×.</li>
+            <li>A rule change that allowed approximate math gave prefill its biggest late jump (+5%), but the same idea moved my decoder layer only about +0.36%, because there the GPU mostly waits on memory.</li>
+          </ul>
+        </section>
+
+        <p>The <a href="https://openkernelchallenge.dev/" rel="noreferrer">Open Kernel Challenge</a> asked for faster GPU kernels for Muse Spark Open, an open mixture-of-experts model from Meta. This post is about its kernel track. There, a submission is one Python file that speeds up one part of the model. It runs on a single H200 and gets timed against SGLang's own kernel in the same run.</p>
+        <p>The serving track is a separate thing: you patch SGLang itself and get scored by throughput on a whole 8×H200 node. So every number here is a kernel speed-up, not serving throughput.</p>
+        <p>There were five kernel boards. Three cover parts of a decoder layer (attention, MoE and projections), prefill runs the whole layer on long prompts, and the fifth runs the whole layer while generating tokens, which is what sets your overall rank. My first accepted run, on the MoE, read 1.19×.</p>
+
+        <h2>Where I ended up</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Board</th><th scope="col" class="num">Speed-up over SGLang</th><th scope="col" class="num">Rank</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Whole layer</th><td class="num"><b>2.297×</b></td><td class="num">115</td></tr>
+              <tr><th scope="row">Attention</th><td class="num"><b>2.731×</b></td><td class="num">85</td></tr>
+              <tr><th scope="row">MoE</th><td class="num"><b>2.400×</b></td><td class="num">205</td></tr>
+              <tr><th scope="row">Projections</th><td class="num"><b>1.596×</b></td><td class="num">83</td></tr>
+              <tr><th scope="row">Prefill</th><td class="num"><b>1.922×</b></td><td class="num">102</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Take these ranks with a grain of salt. They're provisional, and the final order comes from reruns. The board also kept moving under me: a 2.26× run of mine was once rank 83, and by the close the same score would've landed around rank 226 (here's <a href="https://openkernelchallenge.dev/api/v1/leaderboard/muse_decode_layer" rel="noreferrer">the full layer board</a>, I'm ethduke). And a single run carries about ±1.5% of noise, which on the layer board is worth roughly 140 places. Honestly, the whole challenge was pretty intense, since you had to keep tweaking something just to hold the same spot on the board.</p>
+
+        <h2>A slow start</h2>
+        <p>It's pretty obvious you can't win a kernel challenge with SGLang's stock kernels like Marlin, so hand-written CUDA enters the stage. For the first stretch I polished my own kernels. They worked, and they beat SGLang, but my layer was stuck at 1.67×. Then a faster public design turned up, and on the same judge it beat mine on every load. Its expert step does it all in one persistent launch: each expert's second step starts as soon as its own first step ends, and every expert's 4-bit weights stream through once at about 4.2 TB/s. Humbling, but also the most useful thing I learned in the whole challenge.</p>
+        <p>So I switched. These kernels, with my own changes on top, took my layer to 2.23× and moved me from rank 612 to 127. The MoE went from 1.80× to 2.40×. A day of research on those already tuned kernels then produced 0 surviving ideas out of 9, while two boards sat far behind code I already had. Adopting it took about an hour: projections went from 1.33× to 1.60× (rank 612 to 25), and prefill from 1.52× to 1.80×. Attention later went from 2.00× to 2.63× the same way.</p>
+
+        <h2>Why the layer got faster</h2>
+        <p>So, what's the layer here? The layer board times everything one GPU does for one decoder layer while the model generates, i.e. the projections, attention, the router, the MoE, and the norms in between. The model stacks 62 of these layers, 46 with sliding-window attention and 16 with full attention, and the score weights them that way. And let's not forget that prefill isn't part of it. That's a separate board running the same layer on long prompts.</p>
+        <p>So here's the layer at one load, 32 requests making one token each on a sliding-window layer, stock against mine. You can switch between them to see what changed.</p>
+
+        <figure class="widget" data-toggle aria-label="Decoder layer at one load, stock against mine">
+          <div class="wtop">
+            <div class="toggle" role="group" aria-label="Which layer to show">
+              <button type="button" data-show="before" aria-pressed="false">Before: stock SGLang</button>
+              <button type="button" data-show="after" aria-pressed="true">After: my layer</button>
+            </div>
+            <div class="legend" aria-label="Colour key">
+              <span><i class="sw k-proj"></i>Projections</span>
+              <span><i class="sw k-attn"></i>Attention</span>
+              <span><i class="sw k-moe"></i>MoE</span>
+              <span><i class="sw k-glue"></i>Norms, routing, helpers</span>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="before">
+            <p class="wcap"><b>Stock: 272 µs</b> of GPU work at this load</p>
+            <div class="chips"><span class="chips-t">Every board starts at</span><span class="chip k-layer">Layer <b>1.00×</b></span><span class="chip k-moe">MoE <b>1.00×</b></span><span class="chip k-attn">Attention <b>1.00×</b></span><span class="chip k-proj">Projections <b>1.00×</b></span><span class="chip">Prefill <b>1.00×</b></span></div>
+            <div class="arch">
+              <div>
+                <div class="total">Total time<div class="bar"><i style="width:100%"></i></div></div>
+            <div class="stack">
+              <div class="end">Input: 32 requests, one new token each</div>
+              <div class="ar" aria-hidden="true">↓</div>
+              <div class="sl g-attn"><div class="t">Attention sublayer</div>
+                <div class="kp k-proj"><div class="rowh"><span>qkv_gate GEMM</span><span>~14.3 µs</span></div><div class="mut">cuBLAS</div><div class="bar"><i style="width:11.4%"></i></div></div>
+                <div class="kp k-attn"><div class="rowh"><span>FlashAttention 3 + combine</span><span>23.5 µs</span></div><div class="mut">plus a chain of small steps</div><div class="bar"><i style="width:18.7%"></i></div></div>
+                <div class="kp k-proj"><div class="rowh"><span>o GEMM</span><span>~5.7 µs</span></div><div class="mut">cuBLAS</div><div class="bar"><i style="width:4.5%"></i></div></div>
+              </div>
+              <div class="ar" aria-hidden="true">↓</div>
+              <div class="bd"><div class="rowh"><span>Boundary 1</span></div><div class="mut">Residual add + norms</div></div>
+              <div class="ar" aria-hidden="true">↓</div>
+              <div class="sl g-moe"><div class="t">MoE sublayer</div>
+                <div class="kp k-proj"><div class="rowh"><span>Pooler GEMM</span><span>~22.9 µs</span></div><div class="mut">cuBLAS, down to expert width</div><div class="bar"><i style="width:18.2%"></i></div></div>
+                <div class="kp k-glue"><div class="rowh"><span>Router</span><span>~13.3 µs</span></div><div class="mut">on a side stream</div><div class="bar"><i style="width:10.6%"></i></div></div>
+                <div class="kp k-glue"><div class="rowh"><span>Pre-expert norm</span><span>5.7 µs</span></div><div class="mut">separate launch</div><div class="bar"><i style="width:4.5%"></i></div></div>
+                <div class="kp k-moe"><div class="rowh"><span>Marlin experts</span><span>125.6 µs</span></div><div class="mut">two 4-bit GEMMs, helpers between</div><div class="bar"><i style="width:100.0%"></i></div></div>
+                <div class="kp k-proj"><div class="rowh"><span>Unpooler GEMM</span><span>~22.1 µs</span></div><div class="mut">cuBLAS, back to full width</div><div class="bar"><i style="width:17.6%"></i></div></div>
+              </div>
+              <div class="ar" aria-hidden="true">↓</div>
+              <div class="bd"><div class="rowh"><span>Boundary 2</span></div><div class="mut">Residual add + norms · 8.0 µs for both</div></div>
+              <div class="ar" aria-hidden="true">↓</div>
+              <div class="end">Output to the next layer</div>
+            </div>
+            <div class="extra"><b>Plus 31.3 µs</b> in 16 small helper kernels across the layer: QK norm, KV store, gate, top-k, align, SiLU, post norm</div>
+              </div>
+              <div class="cards">
+                <div class="card k-attn"><h3>Attention is a chain</h3><p>The attention step comes with its own norms, cache write, combine and gate, and each one is a separate launch.</p></div>
+                <div class="card k-moe"><h3>MoE takes two passes</h3><p>The expert weights are read in two passes, with sorting, activation and norm steps in between.</p></div>
+                <div class="card"><h3>Mostly one after another</h3><p>Routing runs beside a projection. Almost everything else waits for the step before it to finish.</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="after">
+            <p class="wcap"><b>Mine: 158 µs</b> of GPU work at this load</p>
+            <div class="chips"><span class="chips-t">Where my boards ended</span><span class="chip k-layer">Layer <b>2.30×</b></span><span class="chip k-moe">MoE <b>2.40×</b></span><span class="chip k-attn">Attention <b>2.73×</b></span><span class="chip k-proj">Projections <b>1.60×</b></span><span class="chip">Prefill <b>1.92×</b></span></div>
+            <div class="arch">
+              <div>
+                <div class="total">Total time, same scale<div class="bar"><i class="on" style="width:58.1%"></i></div></div>
+            <div class="stack">
+              <div class="end">Input: 32 requests, one new token each</div>
+              <div class="ar" aria-hidden="true">↓</div>
+              <div class="sl g-attn"><div class="t">Attention sublayer</div>
+                <div class="kp k-proj"><div class="rowh"><span>qkv_gate GEMV</span><span>11.1 µs</span></div><div class="mut">12-bit weights · was ~14.3</div><div class="bar"><i style="width:8.8%"></i></div></div>
+                <div class="kp k-attn on"><div class="rowh"><span>Attention, fused</span><span>9.3 µs</span></div><div class="mut">one kernel, gate included · was 23.5 + small steps</div><div class="bar"><i style="width:7.4%"></i></div></div>
+                <div class="kp k-proj"><div class="rowh"><span>o GEMV</span><span>6.4 µs</span></div><div class="mut">12-bit weights · was ~5.7</div><div class="bar"><i style="width:5.1%"></i></div></div>
+              </div>
+              <div class="ar" aria-hidden="true">↓</div>
+              <div class="bd"><div class="rowh"><span>Boundary 1</span></div><div class="mut">Residual add + norms, one Triton kernel</div></div>
+              <div class="ar" aria-hidden="true">↓</div>
+              <div class="sl g-moe"><div class="t">MoE sublayer</div>
+                <div class="kp k-proj"><div class="rowh"><span>Pooler + router</span><span>21.4 µs</span></div><div class="mut">12-bit weights, one launch · was ~36.2</div><div class="bar"><i style="width:17.0%"></i></div></div>
+                <div class="kp k-glue"><div class="rowh"><span>Route, top 8</span><span>2.2 µs</span></div><div class="mut">one short kernel</div><div class="bar"><i style="width:1.8%"></i></div></div>
+                <div class="kp k-moe on"><div class="rowh"><span>Fused MoE</span><span>81.9 µs</span></div><div class="mut">one persistent launch · was 125.6 + helpers</div><div class="bar"><i style="width:65.2%"></i></div></div>
+                <div class="kp k-proj"><div class="rowh"><span>Unpooler GEMV</span><span>17.1 µs</span></div><div class="mut">12-bit weights · was ~22.1</div><div class="bar"><i style="width:13.6%"></i></div></div>
+              </div>
+              <div class="ar" aria-hidden="true">↓</div>
+              <div class="bd"><div class="rowh"><span>Boundary 2</span></div><div class="mut">8.9 µs for both · was 8.0</div></div>
+              <div class="ar" aria-hidden="true">↓</div>
+              <div class="end">Output to the next layer</div>
+            </div>
+              </div>
+              <div class="cards">
+                <div class="card k-attn"><h3>Attention in one step</h3><p>One launch does the whole attention step, gate included, instead of a chain of small ones.</p></div>
+                <div class="card k-moe"><h3>MoE in one launch</h3><p>The MoE work runs as one launch per call, streaming weights from memory while the math runs. It's still about half the layer's time.</p></div>
+                <div class="card"><h3>Steps overlap</h3><p>Each step can start before the one before it has fully finished, so short steps hide their start-up cost.</p></div>
+              </div>
+            </div>
+          </div>
+
+        </figure>
+
+        <p>Now let's go part by part, in the order the layer runs them.</p>
+        <p><strong>Projections.</strong> These are the plain matrix multiplies: one into attention for the queries, keys, values and gate, one back out, and a pair around the MoE that shrinks the hidden state to the experts' width and grows it back. With only a few tokens per step they're waiting on memory, not math, so the trick is to read less, and the faster code packs the BF16 weights into a lossless 12-bit format with 25% fewer bytes. The projection out of the MoE went from about 22 to 17 µs, though the one after attention actually got a bit slower (5.7 to 6.4 µs).</p>
+        <p><strong>Attention.</strong> In stock SGLang, attention is a whole chain of launches, with the norms, the cache write, combining partial results, and the gate each on their own. The faster version does it all in one launch, splitting each request's cached keys across blocks and letting a hardware bulk-reduce merge the pieces. So you get 9.3 µs instead of 23.5 µs plus all the small steps around it.</p>
+        <p><strong>Norms and residuals.</strong> Between the big steps, the layer adds the residual back in and normalizes. Honestly, these barely moved (about 8 µs in stock, 9 µs in mine), so don't look for the speed-up here.</p>
+        <p><strong>Router.</strong> For each token, the router picks 8 of 256 experts with a small projection, a sigmoid with a bias, and a top-8. Stock runs those as separate small steps, about 13 µs here, while the faster code tucks the router into the MoE's input projection and does the rest in one short 2.2 µs kernel.</p>
+        <p><strong>MoE.</strong> This is the big one, since each token goes through 8 experts on 4-bit weights. Stock runs two big matrix multiplies with sorting, activation and norm helpers in between, while the faster version is one persistent launch: each expert starts its second step as soon as its own first step ends, busy experts get big tiles and quiet ones small tiles, and every expert's weights stream through once at about 4.2 TB/s. It still takes about half the layer, but that's 81.9 µs instead of 125.6 µs plus helpers.</p>
+        <p><strong>Putting it together.</strong> The whole layer ends up as a chain of about nine kernels, and each one lets the next start setting up before it's done, so the gaps between steps mostly disappear. At this load the GPU work fell from 272 to 158 µs, and across all six loads and both layer types, the layer scores 2.30×.</p>
+
+        <h2>Then measuring became the work</h2>
+        <p>After the switch, the hard part was knowing whether anything really helped. Guessing from profiles often failed. One swap saved 0.5-0.8 µs on its own, then cost 0.7-1.0 µs inside the full layer. What worked was timing old and new code side by side on the same inputs.</p>
+        <p>Some of the best finds were boring. Settings that one board had already fixed but my layer hadn't picked up gave +0.25%, and a few cheap checks like that added up to +0.61%. The top-ranked research idea actually lost time.</p>
+        <p>A single score can mislead you in both directions. With the math changes below, that stack was worth about +1% side by side, yet my board row moved only +0.27%. The next change was worth +0.26% to +0.37% side by side, and the row jumped +1.3%, from 2.268× to 2.297×. For anything under about 1%, I trust the side-by-side number, not one score.</p>
+
+        <h2>A small change with a big boost</h2>
+        <p>The math part is my favorite, because such a small change gave such a visible boost almost instantly. The organizers' Nov 3 update allowed approximate math on the kernel boards, as long as it stays accurate to BF16 precision, and it named attention's exponential and FP16 sums as fair game. Until then I'd stuck to exact math.</p>
+        <p>Attention turns every score into a weight using an exponential, and it does that for every query and key, so it sits right in the innermost loop. The exact version goes through the GPU's slower math unit, and the result gets rounded to 8 bits right after, so most of that precision was being thrown away. ZhimaoL's approximate exponential gets close enough with a quick bit trick.</p>
+
+        <figure class="widget" data-toggle aria-labelledby="math-caption">
+          <div class="wtop">
+            <div class="toggle" role="group" aria-label="Which math to show">
+              <button type="button" data-show="exact" aria-pressed="false">Exact math</button>
+              <button type="button" data-show="approx" aria-pressed="true">Approximate math</button>
+            </div>
+          </div>
+          <div class="panel mathpair" data-panel="exact">
+            <svg viewBox="0 0 340 340" role="img" aria-label="With exact math: memory loads, scores, then a slower exact exponential for every query and key, with the weights rounded to 8 bits before the weighted sum. Prefill 1.83×, attention 2.63×.">
+              <defs>
+                <marker id="f2a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#60666c" stroke-width="1"/></marker>
+              </defs>
+              <text class="head" x="0" y="14">Exact math</text>
+              <text class="sub attn" x="0" y="31">The attention step</text>
+              <rect class="sgroup" x="0" y="42" width="340" height="220" rx="6"/>
+              <rect class="box mem" x="14" y="52" width="312" height="44" rx="3"/><text class="label center" x="170" y="78">Memory: load keys and values</text>
+              <line class="line" x1="170" y1="96" x2="170" y2="118" marker-end="url(#f2a)"/><text class="small" x="178" y="111">keys</text>
+              <rect class="box" x="14" y="118" width="312" height="24" rx="3"/><text class="label center" x="170" y="134">Scores</text>
+              <line class="line" x1="170" y1="142" x2="170" y2="164" marker-end="url(#f2a)"/><text class="small" x="178" y="157">every query and key</text>
+              <rect class="box cost" x="14" y="164" width="312" height="44" rx="3"/><text class="label center" x="170" y="183">Exponential, exact</text><text class="small center" x="170" y="198">slower math unit</text>
+              <line class="line" x1="170" y1="208" x2="170" y2="230" marker-end="url(#f2a)"/><text class="small" x="178" y="223">weights, rounded to 8 bits</text>
+              <rect class="box" x="14" y="230" width="312" height="24" rx="3"/><text class="label center" x="170" y="246">Weighted sum</text>
+              <text class="label" x="14" y="290">Prefill</text><text class="score endt" x="326" y="291">1.83×</text>
+              <line x1="14" y1="302" x2="326" y2="302" stroke="#d7dadd"/>
+              <text class="label attn" x="14" y="324">Attention</text><text class="score endt" x="326" y="325">2.63×</text>
+            </svg>
+          </div>
+          <div class="panel mathpair" data-panel="approx">
+            <svg viewBox="0 0 340 340" role="img" aria-label="With approximate math: the exponential uses a quick bit trick and takes less time, the weights are still rounded to 8 bits, and memory loads are unchanged. Prefill 1.92×, up 5%. Attention 2.73×, up 4%.">
+              <defs>
+                <marker id="f2b" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#60666c" stroke-width="1"/></marker>
+              </defs>
+              <text class="head" x="0" y="14">Approximate math</text>
+              <text class="sub attn" x="0" y="31">The attention step, memory unchanged</text>
+              <rect class="sgroup" x="0" y="42" width="340" height="220" rx="6"/>
+              <rect class="box mem" x="14" y="52" width="312" height="44" rx="3"/><text class="label center" x="170" y="72">Memory: load keys and values</text><text class="small center" x="170" y="87">unchanged</text>
+              <line class="line" x1="170" y1="96" x2="170" y2="118" marker-end="url(#f2b)"/><text class="small" x="178" y="111">keys</text>
+              <rect class="box" x="14" y="118" width="312" height="24" rx="3"/><text class="label center" x="170" y="134">Scores</text>
+              <line class="line" x1="170" y1="142" x2="170" y2="164" marker-end="url(#f2b)"/><text class="small" x="178" y="157">every query and key</text>
+              <rect class="ghost" x="14" y="164" width="312" height="44" rx="3"/>
+              <rect class="merged" x="22" y="170" width="296" height="32" rx="3"/><text class="label on center" x="170" y="184">Exponential, approximate</text><text class="small center" x="170" y="197">quick bit trick</text>
+              <line class="line" x1="170" y1="208" x2="170" y2="230" marker-end="url(#f2b)"/><text class="small" x="178" y="223">weights, rounded to 8 bits</text>
+              <rect class="box" x="14" y="230" width="312" height="24" rx="3"/><text class="label center" x="170" y="246">Weighted sum</text>
+              <text class="label" x="14" y="290">Prefill</text><text class="small endt" x="272" y="290">+5%</text><text class="score up endt" x="326" y="291">1.92×</text>
+              <line x1="14" y1="302" x2="326" y2="302" stroke="#d7dadd"/>
+              <text class="label attn" x="14" y="324">Attention</text><text class="small endt" x="272" y="324">+4%</text><text class="score up endt" x="326" y="325">2.73×</text>
+            </svg>
+          </div>
+          <figcaption id="math-caption">Both boards gained a few percent. The scores shown are best runs, and repeats of the same code read a bit lower: prefill averages about 1.90× against about 1.82× with exact math, and attention's four runs average 2.70× against 2.63× before. Part of attention's gain also comes from adding up its query-key scores in FP16, which the same update allowed. The boxes are a sketch, and the dashed outline marks the old cost.</figcaption>
+        </figure>
+
+        <p>In prefill the switch was just a small build change, and it made the attention step about 15-35% faster, with the biggest savings on long contexts. That was worth about +4.4% timed side by side, and it was prefill's biggest late jump, from 1.83× to 1.92× on the board.</p>
+        <p>It doesn't work everywhere, though. In the decode layer the same kind of change was worth only about +0.36%. There, attention mostly waits on memory loads, and even removing all of its math would add under about 1%. So a small change pays off when it sits in a loop that runs constantly and that step is really waiting on the math. Before speeding up a step, find out what it's waiting for.</p>
+
+        <h2>One trick worth knowing</h2>
+        <p>One paper I found useful for the research side, if you use agents for this kind of work, is <a href="https://arxiv.org/html/2610.07447v1" rel="noreferrer">Fork-and-Flush: Escaping Idea Basins in Autoresearch Agents</a>, which I came across through <a href="https://x.com/lxe" rel="noreferrer">@lxe</a> on X. It shows that separate runs of the same agent can get stuck at very different scores, each circling its own set of ideas. The fix is simple: every so often, fork the agent into parallel runs that keep the workspace but start with a fresh chat, then carry on from the best one. I tried one round on my already tuned layer: three fresh agents, each with 4 test runs and 150 minutes. Two came back with small but real savings of about +0.2% each, and merged they read +0.26% to +0.37% side by side.</p>
+
+        <h2>What's next</h2>
+        <p>Next up is the serving round, which opens in a couple of days, and I'm looking forward to it. The big difference is the GPU count: the kernel boards time one kernel on a single H200, while serving runs a patched SGLang across a whole node of eight. So it's less about one fast kernel and more about how the full server holds up when eight GPUs share the work.</p>
+      </article>
+    </main>
+    <footer class="site-footer"><span>Research and software development</span><a href="https://github.com/ethduke/ethduke.github.io" rel="noreferrer">Site source</a></footer>
+  </div>
+  <script>
+    document.querySelectorAll('[data-toggle]').forEach(function (fig) {
+      var buttons = fig.querySelectorAll('[data-show]');
+      var panels = fig.querySelectorAll('[data-panel]');
+      function show(name) {
+        buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.show === name)); });
+        panels.forEach(function (p) { p.hidden = p.dataset.panel !== name; });
+      }
+      buttons.forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.show); }); });
+      var start = fig.querySelector('[data-show][aria-pressed="true"]');
+      show(start ? start.dataset.show : buttons[0].dataset.show);
+    });
+  </script>
+</body>
+</html>

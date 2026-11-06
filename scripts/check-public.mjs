@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-import { demoAssets } from './site-files.mjs';
+import { articleFiles, demoAssets } from './site-files.mjs';
 
 const allowed = [
   '.githooks/commit-msg', '.githooks/pre-commit', '.gitignore', '.nojekyll',
@@ -15,6 +15,7 @@ const allowed = [
   '.github/workflows/publish.yml', 'scripts/site-files.mjs', 'scripts/prepare-release.mjs',
   'scripts/install-kubo.mjs', 'scripts/publish-ipfs.mjs', 'scripts/publish.test.mjs',
   'scripts/setup-ipns.mjs', 'scripts/keep-schedule.mjs',
+  ...articleFiles,
   ...demoAssets.keys(),
 ];
 const git = (...args) => execFileSync('git', args, { cwd: root });

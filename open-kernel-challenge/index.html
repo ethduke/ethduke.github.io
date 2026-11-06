@@ -66,6 +66,21 @@
     .post thead th { font-weight: 600; border-bottom: 1px solid #b9bec3; }
     .post .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+    /* Top banner. */
+    .post .banner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 24px; align-items: center; border: 1px solid var(--rule); border-radius: 12px; padding: 24px 26px; margin: 10px 0 22px; }
+    .post .bn-eb { grid-column: 1 / -1; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--proj); margin: 0 0 -8px; }
+    .bn-eb span { white-space: nowrap; }
+    .post .bn-hl { font-size: 40px; line-height: 1.1; font-weight: 600; margin: 0; white-space: nowrap; }
+    .post .bn-row { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); margin: 0 0 4px; }
+    .post .bn-seg + .bn-row { margin-top: 12px; }
+    .bn-seg { display: flex; height: 20px; border-radius: 4px; overflow: hidden; }
+    .bn-seg i { display: block; height: 100%; }
+    .bn-seg .k-proj { background: var(--proj); }
+    .bn-seg .k-attn { background: var(--attn); }
+    .bn-seg .k-moe { background: var(--moe); }
+    .bn-seg .k-glue { background: var(--glue); }
+    .banner .legend { margin-top: 10px; }
+
     /* Before/after widgets. */
     .widget { border: 1px solid var(--rule); border-radius: 8px; padding: 14px; }
     .wtop { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
@@ -163,6 +178,9 @@
       .post h1 { font-size: 22px; }
       .arch { grid-template-columns: 1fr; }
       .widget { padding: 10px; }
+      .post .banner { grid-template-columns: 1fr; gap: 16px; padding: 18px; }
+      .post .bn-hl { font-size: 32px; }
+      .post .bn-eb { letter-spacing: .05em; margin-bottom: -4px; }
       .toggle button { padding: 7px 10px; }
       .site-footer { padding-bottom: 22px; }
     }
@@ -177,6 +195,17 @@
     <main class="post">
       <a class="back" href="../">← Research portfolio</a>
       <article>
+        <figure class="banner" aria-label="One decoder layer at one load: stock SGLang takes 272 µs and mine takes 158 µs. Projections, attention, the MoE and the helper steps all shrink.">
+          <p class="bn-eb"><span>Open Kernel Challenge</span> · <span>CUDA</span> · <span>one H200</span></p>
+          <p class="bn-hl">272 → 158 µs.</p>
+          <div aria-hidden="true">
+            <p class="bn-row"><span>Stock</span><span>272 µs</span></p>
+            <div class="bn-seg" style="width:100%"><i class="k-proj" style="width:23.9%"></i><i class="k-attn" style="width:8.6%"></i><i class="k-moe" style="width:46.1%"></i><i class="k-glue" style="width:21.4%"></i></div>
+            <p class="bn-row"><span>Mine</span><span>158 µs · 2.30× overall</span></p>
+            <div class="bn-seg" style="width:58.1%"><i class="k-proj" style="width:35.4%"></i><i class="k-attn" style="width:5.9%"></i><i class="k-moe" style="width:51.7%"></i><i class="k-glue" style="width:7.0%"></i></div>
+            <div class="legend"><span><i class="sw k-proj"></i>Projections</span><span><i class="sw k-attn"></i>Attention</span><span><i class="sw k-moe"></i>MoE</span><span><i class="sw k-glue"></i>Norms, routing, helpers</span></div>
+          </div>
+        </figure>
         <h1>Open Kernel Challenge: what actually sped up my kernels</h1>
         <p class="byline">ethduke · <time datetime="2026-11-06">6 November 2026</time> · about an 8-minute read</p>
 

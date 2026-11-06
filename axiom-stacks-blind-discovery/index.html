@@ -24,6 +24,17 @@
     .post p, .post ul, .post ol { margin: 0 0 14px; }
     .post ul, .post ol { padding-left: 22px; }
     .post li { margin-bottom: 6px; }
+    /* Top banner, matching the other write-ups. */
+    .post .banner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 24px; align-items: center; border: 1px solid var(--rule); border-radius: 12px; padding: 24px 26px; margin: 10px 0 22px; }
+    .post .bn-eb { grid-column: 1 / -1; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #1c5cab; margin: 0 0 -8px; }
+    .post .bn-eb span { white-space: nowrap; }
+    .post .bn-hl { font-size: 40px; line-height: 1.1; font-weight: 600; margin: 0; white-space: nowrap; }
+    .post .bn-sub { font-size: 13px; line-height: 1.5; color: var(--muted); margin: 10px 0 0; }
+    .post .bn-row { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); margin: 0 0 4px; }
+    .post .bn-bar + .bn-row { margin-top: 12px; }
+    .post .bn-bar { height: 20px; border-radius: 4px; }
+    .post .bn-bar.ml { background: #eb6834; }
+    .post .bn-bar.ax { background: #2a78d6; }
     .post .abstract ul { margin-bottom: 0; }
     .post .abstract { margin: 22px 0 26px; padding: 16px 18px; background: #f7f8f9; border-left: 3px solid var(--rule); }
     .post .abstract h2 { margin-top: 0; font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
@@ -56,7 +67,68 @@
     .post details { margin: 10px 0 18px; }
     .post summary { cursor: pointer; font-weight: 600; min-height: 24px; }
     .post .notes { font-size: 13px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 30px; }
-    @media (max-width: 650px) { .post { font-size: 15px; } .post h1 { font-size: 22px; } .post .wide { display: none; } .post .narrow { display: block; } .post .grid2 { grid-template-columns: 1fr; gap: 18px; } }
+
+    /* Animated race (Task 3). Stage tints follow the other write-ups' palette. */
+    .post .race { border: 1px solid var(--rule); border-radius: 12px; padding: 18px 20px 14px; }
+    .post .rc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+    .post .rc-eb { font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: #1c5cab; margin: 0; }
+    .post .rc-title { font-size: 20px; font-weight: 600; line-height: 1.3; margin: 2px 0 0; }
+    .post .rc-clock { text-align: right; flex: none; }
+    .post .rc-clock b { display: block; font-size: 26px; line-height: 1.1; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .post .rc-clock span { font-size: 11.5px; color: var(--muted); }
+    .post .rc-lanes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+    .post .rc-lh { display: flex; align-items: baseline; gap: 6px; font-size: 13.5px; margin-bottom: 8px; }
+    .post .rc-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
+    .post .rc-B .rc-dot { background: #eb6834; }
+    .post .rc-A .rc-dot { background: #2a78d6; }
+    .post .rc-meta { margin-left: auto; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+    .post .rc-stack { position: relative; display: flex; flex-direction: column; }
+    .post .rc-ar { display: block; text-align: center; font-style: normal; color: #9aa0a6; font-size: 11px; line-height: 13px; }
+    .post .rc-st { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; border: 1px solid #bfc4c8; border-radius: 7px; padding: 6px 9px; background: #fff; font-size: 12.5px; line-height: 1.35; transition: border-color .2s, box-shadow .2s; }
+    .post .rc-st b { font-weight: 600; }
+    .post .rc-n { font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .post .rc-n i { font-style: normal; font-weight: 700; }
+    .post .rc-n .b-fail { color: #d03b3b; }
+    .post .rc-n .b-ok { color: #0f7b0f; }
+    .post .rc-n .b-run { color: var(--muted); }
+    .post .rc-d { grid-column: 1 / -1; min-height: 15px; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .post .st-search { background: #e2f3f0; border-color: #92cdc4; } .post .st-search b { color: #1d6259; }
+    .post .st-read { background: #fbf3dc; border-color: #e3ca7e; } .post .st-read b { color: #73550b; }
+    .post .st-write { background: #eeebfa; border-color: #b9afe3; } .post .st-write b { color: #4a3c96; }
+    .post .st-check { background: #f9e8f0; border-color: #e0a6c0; } .post .st-check b { color: #87305a; }
+    .post .rc-st.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+    .post .st-search.on { border-color: #2f8f83; box-shadow: inset 0 0 0 1px #2f8f83; }
+    .post .st-read.on { border-color: #c0921c; box-shadow: inset 0 0 0 1px #c0921c; }
+    .post .st-write.on { border-color: #6c5bc4; box-shadow: inset 0 0 0 1px #6c5bc4; }
+    .post .st-check.on { border-color: #b8467a; box-shadow: inset 0 0 0 1px #b8467a; }
+    .post .rc-pill { position: absolute; right: 8px; top: 0; max-width: 64%; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 16px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; opacity: 0; transition: transform .35s ease, opacity .2s; }
+    .post .rc-B .rc-pill { background: #c2531f; }
+    .post .rc-A .rc-pill { background: #1c5cab; }
+    .post .rc-out { margin-top: 10px; border: 1px solid #bfc4c8; border-radius: 7px; padding: 6px 9px 8px; }
+    .post .rc-oh { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); margin-bottom: 5px; }
+    .post .rc-map { display: block; width: 100%; height: 124px; }
+    .post .rc-map rect { fill: #dfe2e5; }
+    .post .rc-A .rc-map rect.w { fill: #a9c7ee; }
+    .post .rc-B .rc-map rect.w { fill: #f4bda5; }
+    .post .rc-map rect.err { fill: #d03b3b; }
+    .post .rc-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; font-size: 11.5px; color: var(--muted); }
+    .post .rc-btn { flex: none; font: inherit; font-size: 12.5px; color: var(--ink); background: #fff; border: 1px solid #bfc4c8; border-radius: 6px; padding: 5px 12px; min-height: 32px; cursor: pointer; }
+    .post .rc-btn:hover { border-color: var(--ink); }
+    @media (max-width: 650px) {
+      .post .race { padding: 14px 12px 12px; }
+      .post .rc-title { font-size: 17px; }
+      .post .rc-clock b { font-size: 22px; }
+      .post .rc-lanes { gap: 10px; }
+      .post .rc-meta { display: none; }
+      .post .rc-st { padding: 5px 7px; font-size: 11.5px; }
+      .post .rc-d { font-size: 10.5px; }
+      .post .rc-pill { font-size: 10px; padding: 0 6px; max-width: 72%; }
+      .post .rc-map { height: 100px; }
+      .post .rc-foot { flex-direction: column; align-items: flex-start; }
+    }
+    @media (pointer: coarse) { .post .rc-btn { min-height: 44px; } }
+
+    @media (max-width: 650px) { .post { font-size: 15px; } .post h1 { font-size: 22px; } .post .wide { display: none; } .post .narrow { display: block; } .post .grid2 { grid-template-columns: 1fr; gap: 18px; } .post .banner { grid-template-columns: 1fr; gap: 16px; padding: 18px; } .post .bn-hl { font-size: 32px; } .post .bn-eb { letter-spacing: .05em; margin-bottom: -4px; } }
   </style>
 </head>
 <body>
@@ -64,6 +136,7 @@
     <main class="post">
       <a class="back" href="../">← Research portfolio</a>
       <article>
+        <figure class="banner" aria-label="On the one problem that needed a theorem Mathlib lacks, the median time to a verified proof fell from 132.8 s with Mathlib only to 38.6 s with Axiom and no hints."><p class="bn-eb"><span>Axiom Stacks</span> · <span>Lean 4</span> · <span>GPT-6.1 Sol</span></p><div><p class="bn-hl">133 → 39 s.</p><p class="bn-sub">Median time to a verified proof, on the one problem that needed a theorem Mathlib lacks.</p></div><div aria-hidden="true"><p class="bn-row"><span>Mathlib only</span><span>132.8 s</span></p><div class="bn-bar ml" style="width:100%"></div><p class="bn-row"><span>Axiom, no hints</span><span>38.6 s · 3.4× faster</span></p><div class="bn-bar ax" style="width:29.1%"></div></div></figure>
         <h1>Does Axiom&#x27;s Stacks library help an AI agent find proofs faster? A quick test</h1>
         <p class="byline">ethduke · 5 November 2026 · about a 6-minute read</p>
 
@@ -107,10 +180,97 @@
         <p>On Task 3, all five no-hint Axiom runs finished before the fastest Mathlib-only run: a median of 38.6 s against 132.8 s. With five runs each, a split that clean would happen by chance about once in 126 tries.</p>
         <p>On Tasks 1 and 2, nothing changed. The medians are within 0.3 s of each other, and the Axiom runs didn't use Axiom at all: Mathlib already had what they needed, and the agent found it there.</p>
 
-        <h2>The one problem where it mattered</h2>
+        <h2>Where it paid off: Nagata's criterion</h2>
         <figure>
-          <div class="chart wide"><svg viewBox="0 0 680 250" role="img" aria-label="Timeline of one matched pair of Task 3 runs" xmlns="http://www.w3.org/2000/svg"><line x1="150.0" x2="150.0" y1="56" y2="215" stroke="#eceef0"/><text x="150.0" y="232" text-anchor="middle" class="tk">0</text><line x1="210.0" x2="210.0" y1="56" y2="215" stroke="#eceef0"/><text x="210.0" y="232" text-anchor="middle" class="tk">20</text><line x1="270.0" x2="270.0" y1="56" y2="215" stroke="#eceef0"/><text x="270.0" y="232" text-anchor="middle" class="tk">40</text><line x1="330.0" x2="330.0" y1="56" y2="215" stroke="#eceef0"/><text x="330.0" y="232" text-anchor="middle" class="tk">60</text><line x1="390.0" x2="390.0" y1="56" y2="215" stroke="#eceef0"/><text x="390.0" y="232" text-anchor="middle" class="tk">80</text><line x1="450.0" x2="450.0" y1="56" y2="215" stroke="#eceef0"/><text x="450.0" y="232" text-anchor="middle" class="tk">100</text><line x1="510.0" x2="510.0" y1="56" y2="215" stroke="#eceef0"/><text x="510.0" y="232" text-anchor="middle" class="tk">120</text><line x1="570.0" x2="570.0" y1="56" y2="215" stroke="#eceef0"/><text x="570.0" y="232" text-anchor="middle" class="tk">140</text><text x="360" y="248" text-anchor="middle" class="tk">seconds since the prompt</text><line x1="150" x2="150" y1="10" y2="22" stroke="#25282b" stroke-width="1.5"/><text x="158" y="20" class="rl">search</text><circle cx="224" cy="16" r="5.5" fill="#60666c" stroke="#fff" stroke-width="1.5"/><text x="234" y="20" class="rl">proof passes</text><circle cx="332" cy="16" r="5" fill="#fff" stroke="#60666c" stroke-width="2"/><text x="342" y="20" class="rl">proof fails</text><path d="M430,10 l6,6 l-6,6 l-6,-6 Z" fill="#25282b"/><text x="442" y="20" class="rl">exact goal verified</text><text x="138" y="104" text-anchor="end" class="rl">Axiom, no hints</text><line x1="150.0" x2="271.9" y1="100" y2="100" stroke="#2a78d6" stroke-width="2.5" stroke-linecap="round"/><g><title>search at 6.2 s</title><line x1="168.7" x2="168.7" y1="93" y2="107" stroke="#25282b" stroke-width="1.5"/></g><g><title>search at 18.9 s</title><line x1="206.6" x2="206.6" y1="93" y2="107" stroke="#25282b" stroke-width="1.5"/></g><g><title>proof attempt at 27.3 s · passes</title><circle cx="231.8" cy="100" r="6" fill="#2a78d6" stroke="#fff" stroke-width="1.5"/></g><g><title>exact goal verified at 40.6 s</title><path d="M271.9,92 l8,8 l-8,8 l-8,-8 Z" fill="#25282b" stroke="#fff" stroke-width="1.5"/></g><text x="283.9" y="104" class="vb">verified at 41 s</text><text x="138" y="184" text-anchor="end" class="rl">Mathlib only</text><line x1="150.0" x2="552.9" y1="180" y2="180" stroke="#eb6834" stroke-width="2.5" stroke-linecap="round"/><g><title>search at 10.7 s</title><line x1="182.1" x2="182.1" y1="173" y2="187" stroke="#25282b" stroke-width="1.5"/></g><g><title>search at 15.3 s</title><line x1="196.0" x2="196.0" y1="173" y2="187" stroke="#25282b" stroke-width="1.5"/></g><g><title>search at 24.5 s</title><line x1="223.4" x2="223.4" y1="173" y2="187" stroke="#25282b" stroke-width="1.5"/></g><g><title>search at 28.0 s</title><line x1="233.9" x2="233.9" y1="173" y2="187" stroke="#25282b" stroke-width="1.5"/></g><g><title>search at 34.4 s</title><line x1="253.1" x2="253.1" y1="173" y2="187" stroke="#25282b" stroke-width="1.5"/></g><g><title>search at 39.1 s</title><line x1="267.4" x2="267.4" y1="173" y2="187" stroke="#25282b" stroke-width="1.5"/></g><g><title>search at 45.1 s</title><line x1="285.2" x2="285.2" y1="173" y2="187" stroke="#25282b" stroke-width="1.5"/></g><g><title>search at 54.9 s</title><line x1="314.8" x2="314.8" y1="173" y2="187" stroke="#25282b" stroke-width="1.5"/></g><g><title>search at 100.8 s</title><line x1="452.2" x2="452.2" y1="173" y2="187" stroke="#25282b" stroke-width="1.5"/></g><g><title>proof attempt at 87.8 s · fails to compile</title><circle cx="413.5" cy="180" r="5.5" fill="#fff" stroke="#eb6834" stroke-width="2.2"/></g><g><title>proof attempt at 113.4 s · fails to compile</title><circle cx="490.1" cy="180" r="5.5" fill="#fff" stroke="#eb6834" stroke-width="2.2"/></g><g><title>proof attempt at 128.3 s · passes</title><circle cx="535.0" cy="180" r="6" fill="#eb6834" stroke="#fff" stroke-width="1.5"/></g><g><title>exact goal verified at 134.3 s</title><path d="M552.9,172 l8,8 l-8,8 l-8,-8 Z" fill="#25282b" stroke="#fff" stroke-width="1.5"/></g><text x="564.9" y="184" class="vb">verified at 134 s</text><line x1="173.5" y1="92" x2="173.5" y2="74" stroke="#60666c"/><text x="169.5" y="69" class="an">7.8 s: Nagata's criterion appears in a search result</text><text x="231.8" y="124" class="an">27 s: first proof attempt passes</text><text x="178.1" y="164" class="an">same first search, no match in Mathlib</text><text x="413.5" y="204" class="an">two attempts fail to compile</text></svg></div><div class="chart narrow"><svg viewBox="0 0 360 232" role="img" aria-label="Timeline of one matched pair of Task 3 runs" xmlns="http://www.w3.org/2000/svg"><line x1="14" x2="14" y1="6" y2="18" stroke="#25282b" stroke-width="1.5"/><text x="20" y="16" class="tk">search</text><circle cx="74" cy="12" r="4.5" fill="#60666c"/><text x="82" y="16" class="tk">passes</text><circle cx="134" cy="12" r="4" fill="#fff" stroke="#60666c" stroke-width="2"/><text x="142" y="16" class="tk">fails</text><path d="M184,6 l6,6 l-6,6 l-6,-6 Z" fill="#25282b"/><text x="194" y="16" class="tk">exact goal verified</text><line x1="14.0" x2="14.0" y1="36" y2="186" stroke="#eceef0"/><line x1="53.7" x2="53.7" y1="36" y2="186" stroke="#eceef0"/><line x1="93.4" x2="93.4" y1="36" y2="186" stroke="#eceef0"/><line x1="133.1" x2="133.1" y1="36" y2="186" stroke="#eceef0"/><line x1="172.9" x2="172.9" y1="36" y2="186" stroke="#eceef0"/><line x1="212.6" x2="212.6" y1="36" y2="186" stroke="#eceef0"/><line x1="252.3" x2="252.3" y1="36" y2="186" stroke="#eceef0"/><line x1="292.0" x2="292.0" y1="36" y2="186" stroke="#eceef0"/><text x="14.0" y="202" text-anchor="middle" class="tk">0</text><text x="93.4" y="202" text-anchor="middle" class="tk">40</text><text x="172.9" y="202" text-anchor="middle" class="tk">80</text><text x="252.3" y="202" text-anchor="middle" class="tk">120</text><text x="153" y="218" text-anchor="middle" class="tk">seconds since the prompt</text><text x="14" y="62" class="rl">Axiom, no hints</text><line x1="14.0" x2="94.7" y1="78" y2="78" stroke="#2a78d6" stroke-width="2.5" stroke-linecap="round"/><line x1="26.4" x2="26.4" y1="72" y2="84" stroke="#25282b" stroke-width="1.3"/><line x1="51.4" x2="51.4" y1="72" y2="84" stroke="#25282b" stroke-width="1.3"/><circle cx="68.2" cy="78" r="5" fill="#2a78d6" stroke="#fff" stroke-width="1.2"/><path d="M94.7,71 l7,7 l-7,7 l-7,-7 Z" fill="#25282b" stroke="#fff" stroke-width="1.2"/><text x="104.7" y="82" class="vb">41 s</text><text x="14" y="100" class="an">criterion found in a search at 7.8 s</text><text x="14" y="136" class="rl">Mathlib only</text><line x1="14.0" x2="280.7" y1="152" y2="152" stroke="#eb6834" stroke-width="2.5" stroke-linecap="round"/><line x1="35.2" x2="35.2" y1="146" y2="158" stroke="#25282b" stroke-width="1.3"/><line x1="44.4" x2="44.4" y1="146" y2="158" stroke="#25282b" stroke-width="1.3"/><line x1="62.6" x2="62.6" y1="146" y2="158" stroke="#25282b" stroke-width="1.3"/><line x1="69.6" x2="69.6" y1="146" y2="158" stroke="#25282b" stroke-width="1.3"/><line x1="82.3" x2="82.3" y1="146" y2="158" stroke="#25282b" stroke-width="1.3"/><line x1="91.7" x2="91.7" y1="146" y2="158" stroke="#25282b" stroke-width="1.3"/><line x1="103.5" x2="103.5" y1="146" y2="158" stroke="#25282b" stroke-width="1.3"/><line x1="123.1" x2="123.1" y1="146" y2="158" stroke="#25282b" stroke-width="1.3"/><line x1="214.1" x2="214.1" y1="146" y2="158" stroke="#25282b" stroke-width="1.3"/><circle cx="188.4" cy="152" r="4.5" fill="#fff" stroke="#eb6834" stroke-width="2"/><circle cx="239.1" cy="152" r="4.5" fill="#fff" stroke="#eb6834" stroke-width="2"/><circle cx="268.8" cy="152" r="5" fill="#eb6834" stroke="#fff" stroke-width="1.2"/><path d="M280.7,145 l7,7 l-7,7 l-7,-7 Z" fill="#25282b" stroke="#fff" stroke-width="1.2"/><text x="290.7" y="156" class="vb">134 s</text><text x="14" y="174" class="an">two attempts fail to compile</text></svg></div>
-          <figcaption>Figure 2. One pair of Task 3 runs. Both start with the same search; only one library has a match.</figcaption>
+          <div class="race" id="race" role="group" aria-label="Replay of one pair of Task 3 runs. Mathlib only: nine searches, then a 64-line proof that fails at line 35, a fix that fails at line 48, and a 66-line proof verified at 134.3 seconds. Axiom with no hints: the first search finds FiniteCharacter.lean at 7.8 seconds, and a 13-line proof is verified on the first check at 40.6 seconds."><div class="rc-head"><div><p class="rc-eb">Task 3 · one pair of runs · replayed at 10× speed</p><p class="rc-title">Find the theorem, or rebuild it</p></div><div class="rc-clock" aria-hidden="true"><b data-clock>134 s</b><span>since the prompt</span></div></div><div class="rc-lanes"><section class="rc-lane rc-B" data-lane="B" aria-label="Mathlib only"><div class="rc-lh"><span class="rc-dot"></span><b>Mathlib only</b><span class="rc-meta" data-f="meta">9 searches · 3 Lean checks</span></div><div class="rc-stack"><div class="rc-st st-prompt" data-st="prompt"><b>Prompt</b><span class="rc-n" data-f="n-prompt"></span><span class="rc-d" data-f="d-prompt">prove: every quotient A/I is Noetherian</span></div><i class="rc-ar" aria-hidden="true">↓</i><div class="rc-st st-search" data-st="search"><b>Search the library</b><span class="rc-n" data-f="n-search">9</span><span class="rc-d" data-f="d-search">“exists_mem_ne_zero” for the fix</span></div><i class="rc-ar" aria-hidden="true">↓</i><div class="rc-st st-read" data-st="read"><b>Read a file</b><span class="rc-n" data-f="n-read"></span><span class="rc-d" data-f="d-read">Finiteness/Defs.lean, Localization/AtPrime</span></div><i class="rc-ar" aria-hidden="true">↓</i><div class="rc-st st-write" data-st="write"><b>Think and write the proof</b><span class="rc-n" data-f="n-write"></span><span class="rc-d" data-f="d-write">third draft, 66 lines</span></div><i class="rc-ar" aria-hidden="true">↓</i><div class="rc-st st-check" data-st="check"><b>Lean check</b><span class="rc-n" data-f="n-check"><i class="b-fail">✗</i> <i class="b-fail">✗</i> <i class="b-ok">✓</i></span><span class="rc-d" data-f="d-check">passes on the third try</span></div><i class="rc-ar" aria-hidden="true">↓</i><div class="rc-st st-done on" data-st="done"><b>Verified</b><span class="rc-n" data-f="n-done">✓ 134.3 s</span><span class="rc-d" data-f="d-done"></span></div><span class="rc-pill" data-f="pill" aria-hidden="true"></span></div><div class="rc-out"><div class="rc-oh"><span>Proof.lean</span><span data-f="lines">66 lines</span></div><svg class="rc-map" viewBox="0 0 100 198" preserveAspectRatio="none" aria-hidden="true" data-f="map"><rect class="w" x="0" y="0" width="47" height="2"/><rect class="w" x="0" y="3" width="42" height="2"/><rect class="w" x="0" y="6" width="45" height="2"/><rect class="w" x="0" y="9" width="1" height="2"/><rect class="w" x="0" y="12" width="10" height="2"/><rect class="w" x="0" y="15" width="1" height="2"/><rect class="w" x="0" y="18" width="71" height="2"/><rect class="w" x="4" y="21" width="48" height="2"/><rect class="w" x="4" y="24" width="53" height="2"/><rect class="w" x="2" y="27" width="9" height="2"/><rect class="w" x="2" y="30" width="52" height="2"/><rect class="w" x="2" y="33" width="75" height="2"/><rect class="w" x="2" y="36" width="56" height="2"/><rect class="w" x="2" y="39" width="65" height="2"/><rect class="w" x="4" y="42" width="25" height="2"/><rect class="w" x="2" y="45" width="19" height="2"/><rect class="w" x="2" y="48" width="68" height="2"/><rect class="w" x="2" y="51" width="44" height="2"/><rect class="w" x="0" y="54" width="1" height="2"/><rect class="w" x="0" y="57" width="50" height="2"/><rect class="w" x="2" y="60" width="81" height="2"/><rect class="w" x="2" y="63" width="70" height="2"/><rect class="w" x="2" y="66" width="45" height="2"/><rect class="w" x="2" y="69" width="9" height="2"/><rect class="w" x="2" y="72" width="34" height="2"/><rect class="w" x="4" y="75" width="43" height="2"/><rect class="w" x="4" y="78" width="7" height="2"/><rect class="w" x="4" y="81" width="19" height="2"/><rect class="w" x="4" y="84" width="9" height="2"/><rect class="w" x="6" y="87" width="22" height="2"/><rect class="w" x="4" y="90" width="64" height="2"/><rect class="w" x="4" y="93" width="44" height="2"/><rect class="w" x="4" y="96" width="41" height="2"/><rect class="w" x="4" y="99" width="46" height="2"/><rect class="w" x="4" y="102" width="49" height="2"/><rect class="w" x="8" y="105" width="51" height="2"/><rect class="w" x="10" y="108" width="55" height="2"/><rect class="w" x="6" y="111" width="7" height="2"/><rect class="w" x="6" y="114" width="38" height="2"/><rect class="w" x="6" y="117" width="18" height="2"/><rect class="w" x="6" y="120" width="58" height="2"/><rect class="w" x="4" y="123" width="34" height="2"/><rect class="w" x="4" y="126" width="48" height="2"/><rect class="w" x="4" y="129" width="19" height="2"/><rect class="w" x="6" y="132" width="62" height="2"/><rect class="w" x="4" y="135" width="81" height="2"/><rect class="w" x="6" y="138" width="14" height="2"/><rect class="w" x="4" y="141" width="62" height="2"/><rect class="w" x="6" y="144" width="41" height="2"/><rect class="w" x="4" y="147" width="22" height="2"/><rect class="w" x="6" y="150" width="38" height="2"/><rect class="w" x="6" y="153" width="10" height="2"/><rect class="w" x="6" y="156" width="24" height="2"/><rect class="w" x="6" y="159" width="20" height="2"/><rect class="w" x="6" y="162" width="27" height="2"/><rect class="w" x="8" y="165" width="14" height="2"/><rect class="w" x="8" y="168" width="55" height="2"/><rect class="w" x="6" y="171" width="44" height="2"/><rect class="w" x="8" y="174" width="77" height="2"/><rect class="w" x="8" y="177" width="12" height="2"/><rect class="w" x="4" y="180" width="39" height="2"/><rect class="w" x="4" y="183" width="16" height="2"/><rect class="w" x="2" y="186" width="10" height="2"/><rect class="w" x="2" y="189" width="7" height="2"/><rect class="w" x="2" y="192" width="68" height="2"/><rect class="w" x="4" y="195" width="28" height="2"/></svg></div></section><section class="rc-lane rc-A" data-lane="A" aria-label="Axiom, no hints"><div class="rc-lh"><span class="rc-dot"></span><b>Axiom, no hints</b><span class="rc-meta" data-f="meta">2 searches · 1 Lean check</span></div><div class="rc-stack"><div class="rc-st st-prompt" data-st="prompt"><b>Prompt</b><span class="rc-n" data-f="n-prompt"></span><span class="rc-d" data-f="d-prompt">prove: every quotient A/I is Noetherian</span></div><i class="rc-ar" aria-hidden="true">↓</i><div class="rc-st st-search" data-st="search"><b>Search the library</b><span class="rc-n" data-f="n-search">2</span><span class="rc-d" data-f="d-search">“Noetherian quotient” in Mathlib</span></div><i class="rc-ar" aria-hidden="true">↓</i><div class="rc-st st-read" data-st="read"><b>Read a file</b><span class="rc-n" data-f="n-read"></span><span class="rc-d" data-f="d-read">Mathlib Ideal/Quotient/Noetherian.lean</span></div><i class="rc-ar" aria-hidden="true">↓</i><div class="rc-st st-write" data-st="write"><b>Think and write the proof</b><span class="rc-n" data-f="n-write"></span><span class="rc-d" data-f="d-write">combine the two results</span></div><i class="rc-ar" aria-hidden="true">↓</i><div class="rc-st st-check" data-st="check"><b>Lean check</b><span class="rc-n" data-f="n-check"><i class="b-ok">✓</i></span><span class="rc-d" data-f="d-check">passes on the first try</span></div><i class="rc-ar" aria-hidden="true">↓</i><div class="rc-st st-done on" data-st="done"><b>Verified</b><span class="rc-n" data-f="n-done">✓ 40.6 s</span><span class="rc-d" data-f="d-done"></span></div><span class="rc-pill" data-f="pill" aria-hidden="true"></span></div><div class="rc-out"><div class="rc-oh"><span>Proof.lean</span><span data-f="lines">13 lines</span></div><svg class="rc-map" viewBox="0 0 100 198" preserveAspectRatio="none" aria-hidden="true" data-f="map"><rect class="w" x="0" y="0" width="59" height="2"/><rect class="w" x="0" y="3" width="51" height="2"/><rect class="w" x="0" y="6" width="1" height="2"/><rect class="w" x="0" y="9" width="10" height="2"/><rect class="w" x="0" y="12" width="1" height="2"/><rect class="w" x="0" y="15" width="50" height="2"/><rect class="w" x="2" y="18" width="81" height="2"/><rect class="w" x="2" y="21" width="70" height="2"/><rect class="w" x="2" y="24" width="45" height="2"/><rect class="w" x="2" y="27" width="28" height="2"/><rect class="w" x="4" y="30" width="60" height="2"/><rect class="w" x="2" y="33" width="7" height="2"/><rect class="w" x="2" y="36" width="14" height="2"/></svg></div></section></div><div class="rc-foot"><span>Replayed from the run traces (t3-B-r1 and t3-A-r1). Times are real; playback is 10× faster.</span><button type="button" class="rc-btn" data-play>Replay</button></div><script type="application/json" data-race>{"speed":10,"end":134.32,"shapes":{"A":[[[0,59],[0,51],[0,0],[0,10],[0,0],[0,50],[2,81],[2,70],[2,45],[2,28],[4,60],[2,7],[2,14]]],"B":[[[0,47],[0,42],[0,45],[0,0],[0,10],[0,0],[0,71],[4,48],[4,53],[2,9],[2,52],[2,75],[2,56],[2,65],[4,25],[2,19],[2,68],[2,44],[0,0],[0,50],[2,81],[2,70],[2,45],[2,9],[2,34],[4,43],[4,7],[4,19],[4,9],[6,22],[4,64],[4,44],[4,41],[4,49],[8,51],[10,55],[6,7],[6,38],[6,18],[6,58],[4,34],[4,48],[4,19],[6,62],[4,81],[6,14],[4,73],[4,22],[6,38],[6,10],[6,24],[6,20],[6,27],[8,14],[8,55],[6,44],[8,52],[8,12],[4,39],[4,16],[2,10],[2,7],[2,68],[4,28]],[[0,47],[0,42],[0,45],[0,0],[0,10],[0,0],[0,71],[4,48],[4,53],[2,9],[2,52],[2,75],[2,56],[2,65],[4,25],[2,19],[2,68],[2,44],[0,0],[0,50],[2,81],[2,70],[2,45],[2,9],[2,34],[4,43],[4,7],[4,19],[4,9],[6,22],[4,64],[4,44],[4,41],[4,46],[4,49],[8,51],[10,55],[6,7],[6,38],[6,18],[6,58],[4,34],[4,48],[4,19],[6,62],[4,81],[6,14],[4,73],[4,22],[6,38],[6,10],[6,24],[6,20],[6,27],[8,14],[8,55],[6,44],[8,52],[8,12],[4,39],[4,16],[2,10],[2,7],[2,68],[4,28]],[[0,47],[0,42],[0,45],[0,0],[0,10],[0,0],[0,71],[4,48],[4,53],[2,9],[2,52],[2,75],[2,56],[2,65],[4,25],[2,19],[2,68],[2,44],[0,0],[0,50],[2,81],[2,70],[2,45],[2,9],[2,34],[4,43],[4,7],[4,19],[4,9],[6,22],[4,64],[4,44],[4,41],[4,46],[4,49],[8,51],[10,55],[6,7],[6,38],[6,18],[6,58],[4,34],[4,48],[4,19],[6,62],[4,81],[6,14],[4,62],[6,41],[4,22],[6,38],[6,10],[6,24],[6,20],[6,27],[8,14],[8,55],[6,44],[8,77],[8,12],[4,39],[4,16],[2,10],[2,7],[2,68],[4,28]]]},"events":[{"t":0.0,"lane":"A","stage":"prompt","set":{"pill":"reading the task"}},{"t":0.0,"lane":"B","stage":"prompt","set":{"pill":"reading the task"}},{"t":6.22,"lane":"A","stage":"search","set":{"pill":"“finite character”","searches":1,"query":"“finite character” in Stacks and Mathlib"}},{"t":7.83,"lane":"A","stage":"search","set":{"pill":"1 hit in Axiom","query":"hit: StacksFrontier/…/FiniteCharacter.lean"}},{"t":10.69,"lane":"B","stage":"search","set":{"pill":"“finite character”","searches":1,"query":"“finite character”: no such theorem"}},{"t":11.57,"lane":"A","stage":"read","set":{"pill":"FiniteCharacter.lean","file":"FiniteCharacter.lean · Nagata’s criterion"}},{"t":15.32,"lane":"B","stage":"search","set":{"pill":"“Noetherian · finite”","searches":2,"query":"“Noetherian · finite” in LocalProperties"}},{"t":18.85,"lane":"A","stage":"search","set":{"pill":"“Noetherian quotient”","searches":2,"query":"“Noetherian quotient” in Mathlib"}},{"t":24.46,"lane":"B","stage":"search","set":{"pill":"no match","searches":3,"query":"“FG · local · maximal”: no match"}},{"t":27.2,"lane":"A","stage":"read","set":{"pill":"Quotient/Noetherian","file":"Mathlib Ideal/Quotient/Noetherian.lean"}},{"t":27.26,"lane":"A","stage":"write","set":{"pill":"13 lines","write":"combine the two results","att":1,"lines":13}},{"t":27.36,"lane":"A","stage":"check","set":{"pill":"checking","checks":["run"],"note":"compiling Proof.lean"}},{"t":27.98,"lane":"B","stage":"read","set":{"pill":"LocalProperties/Basic","searches":4,"file":"LocalProperties/Basic.lean"}},{"t":34.38,"lane":"B","stage":"search","set":{"pill":"no match","searches":5,"query":"“exists · FG”: no match"}},{"t":39.12,"lane":"B","stage":"read","set":{"pill":"Finiteness/Basic","searches":6,"file":"Finiteness/Basic.lean"}},{"t":40.63,"lane":"A","stage":"done","set":{"pill":"verified","checks":["ok"],"note":"passes on the first try","done":"✓ 40.6 s"}},{"t":45.06,"lane":"B","stage":"read","set":{"pill":"Finiteness/Defs","searches":7,"file":"Finiteness/Defs.lean, Localization/AtPrime"}},{"t":54.94,"lane":"B","stage":"search","set":{"pill":"“quotient · surjective”","searches":8,"query":"“quotient · surjective” in Noetherian/Basic"}},{"t":55.6,"lane":"B","stage":"write","set":{"pill":"rebuilding by hand","write":"rebuild the localization argument"}},{"t":87.89,"lane":"B","stage":"check","set":{"pill":"check 1","checks":["run"],"att":1,"lines":64,"err":0,"note":"compiling 64 lines","write":"first draft, 64 lines"}},{"t":99.85,"lane":"B","stage":"check","set":{"pill":"✗ line 35","checks":["fail"],"err":35,"note":"line 35: instance not found"}},{"t":100.75,"lane":"B","stage":"search","set":{"pill":"“exists_mem_ne_zero”","searches":9,"query":"“exists_mem_ne_zero” for the fix"}},{"t":101.6,"lane":"B","stage":"write","set":{"pill":"fixing line 35","write":"fix line 35"}},{"t":113.43,"lane":"B","stage":"check","set":{"pill":"check 2","checks":["fail","run"],"att":2,"lines":65,"err":0,"note":"compiling 65 lines","write":"second draft, 65 lines"}},{"t":121.15,"lane":"B","stage":"check","set":{"pill":"✗ line 48","checks":["fail","fail"],"err":48,"note":"line 48: function expected"}},{"t":121.6,"lane":"B","stage":"write","set":{"pill":"fixing line 48","write":"fix line 48"}},{"t":128.37,"lane":"B","stage":"check","set":{"pill":"check 3","checks":["fail","fail","run"],"att":3,"lines":66,"err":0,"note":"compiling 66 lines","write":"third draft, 66 lines"}},{"t":134.32,"lane":"B","stage":"done","set":{"pill":"verified","checks":["fail","fail","ok"],"note":"passes on the third try","done":"✓ 134.3 s"}}]}</script><script>
+(function () {
+  var root = document.getElementById('race');
+  if (!root || !window.requestAnimationFrame) return;
+  var D = JSON.parse(root.querySelector('[data-race]').textContent);
+  var SYM = { ok: '✓', fail: '✗', run: '…' };
+  var STAGES = ['prompt', 'search', 'read', 'write', 'check', 'done'];
+  var lanes = {};
+  root.querySelectorAll('[data-lane]').forEach(function (el) {
+    var f = function (n) { return el.querySelector('[data-f="' + n + '"]'); };
+    lanes[el.dataset.lane] = { el: el, f: f, stack: el.querySelector('.rc-stack'), boxes: {}, last: '' };
+    STAGES.forEach(function (s) { lanes[el.dataset.lane].boxes[s] = el.querySelector('[data-st="' + s + '"]'); });
+  });
+  var clock = root.querySelector('[data-clock]');
+  var btn = root.querySelector('[data-play]');
+  var prompt = 'prove: every quotient A/I is Noetherian';
+  function fresh() { return { stage: 'prompt', pill: '', searches: 0, query: '', file: '', write: '', checks: [], note: '', att: 0, lines: 0, err: 0, done: '' }; }
+  function stateAt(t) {
+    var S = { A: fresh(), B: fresh() };
+    for (var i = 0; i < D.events.length && D.events[i].t <= t; i++) {
+      var e = D.events[i], s = S[e.lane];
+      s.stage = e.stage;
+      for (var k in e.set) s[k] = e.set[k];
+    }
+    return S;
+  }
+  function mapSvg(k, att, err) {
+    if (!att) return '';
+    var rows = D.shapes[k][att - 1], out = '';
+    for (var i = 0; i < rows.length; i++) {
+      out += (err && i === err - 1)
+        ? '<rect class="err" x="0" y="' + (i * 3 - 1) + '" width="100" height="4"/>'
+        : '<rect class="w" x="' + rows[i][0] + '" y="' + (i * 3) + '" width="' + Math.max(rows[i][1], 1) + '" height="2"/>';
+    }
+    return out;
+  }
+  function render(t) {
+    var S = stateAt(t);
+    for (var k in lanes) {
+      var L = lanes[k], s = S[k];
+      var key = JSON.stringify(s);
+      if (key === L.last) continue;
+      L.last = key;
+      STAGES.forEach(function (st) { L.boxes[st].classList.toggle('on', s.stage === st); });
+      L.f('n-search').textContent = s.searches ? String(s.searches) : '';
+      L.f('d-search').textContent = s.query;
+      L.f('d-read').textContent = s.file;
+      L.f('d-write').textContent = s.write;
+      L.f('n-check').innerHTML = s.checks.map(function (c) { return '<i class="b-' + c + '">' + SYM[c] + '</i>'; }).join(' ');
+      L.f('d-check').textContent = s.note;
+      L.f('n-done').textContent = s.done;
+      L.f('d-prompt').textContent = prompt;
+      L.f('meta').textContent = s.searches + ' searches · ' + s.checks.length + ' Lean check' + (s.checks.length === 1 ? '' : 's');
+      L.f('lines').textContent = s.lines ? s.lines + ' lines' : 'empty';
+      L.f('map').innerHTML = mapSvg(k, s.att, s.err);
+      var pill = L.f('pill'), box = L.boxes[s.stage];
+      pill.textContent = s.pill;
+      pill.style.opacity = s.pill ? '1' : '0';
+      pill.style.transform = 'translateY(' + (box.offsetTop + box.offsetHeight - 9) + 'px)';
+    }
+    clock.textContent = Math.floor(Math.min(t, D.end)) + ' s';
+  }
+  var raf = 0;
+  function play() {
+    cancelAnimationFrame(raf);
+    for (var k in lanes) lanes[k].last = '';
+    var start = performance.now(), stop = D.end + 2.5 * D.speed;
+    btn.textContent = 'Replay';
+    (function frame(now) {
+      var t = (now - start) / 1000 * D.speed;
+      render(Math.min(t, D.end));
+      if (t < stop) raf = requestAnimationFrame(frame);
+    })(start);
+  }
+  btn.addEventListener('click', play);
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  render(D.end);
+  if (reduce) { btn.textContent = 'Play'; return; }
+  if ('IntersectionObserver' in window) {
+    render(0);
+    var io = new IntersectionObserver(function (es) {
+      if (es.some(function (e) { return e.isIntersecting; })) { io.disconnect(); play(); }
+    }, { threshold: 0.35 });
+    io.observe(root);
+  }
+  window.addEventListener('resize', function () { for (var k in lanes) lanes[k].last = ''; });
+})();
+</script></div>
+          <figcaption>Figure 2. One pair of Task 3 runs, replayed from their traces. Both start with the same search; only one library has a match.</figcaption>
         </figure>
         <p>Both agents started with the same search, for "finite character". Mathlib had nothing. In Axiom it hit <code>StacksFrontier/RingTheory/Noetherian/FiniteCharacter.lean</code>, which proves Nagata's criterion: a ring is Noetherian if its localizations at maximal ideals are Noetherian and every nonzero element lies in finitely many maximal ideals. That's exactly what Task 3 needs.</p>
         <p>The agent combined it with Mathlib's fact that quotients of Noetherian rings are Noetherian, and Lean accepted the first attempt:</p>

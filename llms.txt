@@ -13,6 +13,7 @@ Some projects have public code or model links below. Others link to portfolio su
 ## Public models and project repositories
 
 - [Contract Risk Classifier — model card](https://huggingface.co/ethduke/robinhood-contract-traps-qwen3.5-0.8b-lora): Qwen3.5-0.8B fine-tuned with LoRA for questions about owner powers, transfer restrictions, and honeypot-related behavior in decompiled EVM token contracts. Work includes rule/code-lineage/LLM-teacher labels, code-shape and chronological splits, and model/baseline evaluation. The model card documents results and limitations.
+- [Open Kernel Challenge kernels](https://github.com/ethduke/open-kernel-challenge): Final scored Muse Spark Open kernels for the five kernel boards of the Open Kernel Challenge, on one H200. Write-up: https://ethduke.github.io/open-kernel-challenge/
 - [Gensyn RL Swarm peer analytics](https://github.com/ethduke/gensyn_rlswarm_leaderboard): Peer-analytics and leaderboard tooling for Gensyn's RL Swarm testnet.
 - [EIP-7702 batch transaction experiments](https://github.com/ethduke/eip_7702_batch_txs): Portfolio example of EIP-7702 batch-transaction experiments and account-abstraction exploration.
 - [LLM workflow example with OpenRouter](https://github.com/ethduke/tg_summary_openrouter): Portfolio example of an LLM workflow using OpenRouter.

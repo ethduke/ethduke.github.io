@@ -35,13 +35,13 @@ export function signingKey(encoded, expectedName) {
 async function request(fetcher, url, options = {}, retries = 0, delay = wait) {
   for (let attempt = 0; ; attempt++) {
     try {
-      const timeout = AbortSignal.timeout(30_000);
-      const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
+      // Callers streaming a CAR supply a longer deadline covering its body.
+      const signal = options.signal ?? AbortSignal.timeout(30_000);
       const response = await fetcher(url, { redirect: 'error', ...options, signal });
       if (attempt < retries && transient.has(response.status)) { await response.body?.cancel(); await delay(1000 * (attempt + 1)); continue; }
       return response;
     } catch {
-      if (options.signal?.aborted) fail('GATEWAY_PROBE_CANCELLED');
+      if (options.signal?.aborted && options.signal.reason?.name !== 'TimeoutError') fail('GATEWAY_PROBE_CANCELLED');
       if (attempt < retries) { await delay(1000 * (attempt + 1)); continue; }
       fail('NETWORK_REQUEST_FAILED');
     }
@@ -183,16 +183,18 @@ export async function verifyCarArchive(cid, manifest, bytes, signal) {
     fail(signal?.aborted ? 'GATEWAY_PROBE_CANCELLED' : 'GATEWAY_CAR_NOT_VERIFIED');
   } finally { await rm(directory, { recursive: true, force: true }); }
 }
-export async function verifyCarGateway(cid, manifest, fetcher = fetch, delay = wait, preferred, report = async () => {}) {
+export async function verifyCarGateway(cid, manifest, fetcher = fetch, delay = wait, preferred, report = async () => {}, downloadTimeoutMs = 120_000) {
   contentCid(cid);
   const hosts = carGatewayOrigins(preferred), checks = [];
   for (let attempt = 1; attempt <= 3; attempt++) {
     const controller = new AbortController();
     const probes = hosts.map(async gateway => {
-      const check = { gateway, attempt, file: 'bundle.car', httpStatus: 0, code: 'PENDING' };
+      const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(downloadTimeoutMs)]);
+      const started = performance.now();
+      const check = { gateway, attempt, file: 'bundle.car', httpStatus: 0, bytesReceived: 0, elapsedMs: 0, code: 'PENDING' };
       checks.push(check);
       try {
-        const response = await request(fetcher, `${gateway}/ipfs/${cid}?format=car&dag-scope=all`, { redirect: 'follow', headers: { Accept: 'application/vnd.ipld.car' }, signal: controller.signal });
+        const response = await request(fetcher, `${gateway}/ipfs/${cid}?format=car&dag-scope=all`, { redirect: 'follow', headers: { Accept: 'application/vnd.ipld.car' }, signal });
         check.httpStatus = response.status;
         if (!response.ok) check.code = await gatewayFailure(response);
         else if (response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/vnd.ipld.car') {
@@ -202,6 +204,7 @@ export async function verifyCarGateway(cid, manifest, fetcher = fetch, delay = w
           const chunks = []; let size = 0;
           for await (const chunk of response.body) {
             size += chunk.length;
+            check.bytesReceived = size;
             if (size > 2 * 1024 * 1024) fail('INVALID_GATEWAY_CAR');
             chunks.push(chunk);
           }
@@ -209,8 +212,12 @@ export async function verifyCarGateway(cid, manifest, fetcher = fetch, delay = w
           check.code = 'VERIFIED';
         }
       } catch (error) {
-        check.code = error instanceof PublishError ? error.code : 'NETWORK_REQUEST_FAILED';
+        check.code = controller.signal.aborted ? 'GATEWAY_PROBE_CANCELLED'
+          : signal.aborted && signal.reason?.name === 'TimeoutError' ? 'GATEWAY_CAR_DOWNLOAD_TIMEOUT'
+          : error instanceof PublishError ? error.code
+          : check.httpStatus === 200 ? 'GATEWAY_CAR_DOWNLOAD_FAILED' : 'NETWORK_REQUEST_FAILED';
       }
+      check.elapsedMs = Math.round(performance.now() - started);
       if (check.code === 'VERIFIED') return gateway;
       throw new PublishError(check.code);
     });

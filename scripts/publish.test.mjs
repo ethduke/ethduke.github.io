@@ -410,6 +410,26 @@ test('remote CAR verification uses fresh offline storage and rejects corrupt, mi
       assert.ok(!JSON.stringify(reports).includes('SENTINEL'));
     });
 
+    await t.test('CAR deadline covers a stalled HTTP 200 body and records partial bytes without leaking errors', async () => {
+      const reports = [];
+      let aborted = 0;
+      const fetcher = async (url, options) => new Response(new ReadableStream({
+        start(stream) {
+          stream.enqueue(car.subarray(0, 100));
+          const guard = setTimeout(() => stream.error(Error('DO_NOT_LOG_THIS_SENTINEL')), 1000);
+          options.signal.addEventListener('abort', () => {
+            clearTimeout(guard);
+            aborted++;
+            stream.error(options.signal.reason);
+          }, { once: true });
+        },
+      }), { headers: { 'Content-Type': 'application/vnd.ipld.car' } });
+      await assert.rejects(verifyCarGateway(root, manifest, fetcher, noDelay, origin, async rows => reports.push(rows), 25), { code: 'PUBLIC_GATEWAY_NOT_VERIFIED' });
+      assert.equal(aborted, 9);
+      assert.ok(reports.at(-1).every(row => row.code === 'GATEWAY_CAR_DOWNLOAD_TIMEOUT' && row.httpStatus === 200 && row.bytesReceived === 100 && row.elapsedMs > 0));
+      assert.ok(!JSON.stringify(reports).includes('SENTINEL'));
+    });
+
     // A valid archive for another root, an altered block, or HTML masquerading
     // as a CAR must all stop the release before any IPNS PUT.
     for (const [body, type] of [[car, 'application/vnd.ipld.car'], [corrupt, 'application/vnd.ipld.car'], [Buffer.from('<html>CDN page</html>'), 'text/html']]) {
